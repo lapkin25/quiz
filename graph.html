@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Карта тем — тест-конспекты</title>
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<style>
+  :root{--f:#3b82f6;--t:#10b981;--a:#f59e0b;--c:#a855f7;}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif;background:#0f1420;color:#e7ecf5}
+  header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;background:#131a2b;border-bottom:1px solid #232c42}
+  header b{font-size:16px;margin-right:auto}
+  .counter{background:#1c2740;padding:4px 12px;border-radius:14px;font-weight:600}
+  button{background:#1c2740;color:#e7ecf5;border:1px solid #2e3a58;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
+  button:hover{background:#263355}
+  button.active{background:var(--f);border-color:var(--f);color:#fff}
+  #graph{position:absolute;top:52px;bottom:0;left:0;right:340px}
+  .legend{position:absolute;left:12px;bottom:12px;background:rgba(19,26,43,.92);border:1px solid #232c42;border-radius:10px;padding:8px 12px;font-size:12px}
+  .legend span{display:inline-block;margin-right:14px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  #panel{position:absolute;top:52px;right:0;bottom:0;width:340px;background:#131a2b;border-left:1px solid #232c42;overflow-y:auto;padding:16px}
+  #panel h2{margin:0 0 4px;font-size:18px}
+  .tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;margin-bottom:8px}
+  .sec{margin-top:12px}
+  .sec h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#8fa3c8}
+  .links a{display:block;color:#7cb0ff;text-decoration:none;padding:3px 0}
+  .links a:hover{text-decoration:underline}
+  .task-box{margin-top:14px;background:#1a2338;border:1px solid #2e3a58;border-radius:10px;padding:10px 12px}
+  .task-box summary{cursor:pointer;font-weight:600;color:#7cb0ff;margin:4px 0}
+  .btns{display:flex;gap:8px;margin-top:14px}
+  .btns a{flex:1;text-align:center;text-decoration:none;padding:8px;border-radius:8px;background:var(--f);color:#fff;font-weight:600}
+  .btns button{flex:1}
+  .done-badge{color:#34d399;font-weight:600}
+  #err{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#131a2b;border:1px solid #2e3a58;border-radius:12px;padding:20px 24px;max-width:420px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <b>Карта тем</b>
+  <span class="counter" id="counter">…</span>
+  <button data-route="ml">Хочу в ML</button>
+  <button data-route="dev">Хочу в разработку</button>
+  <button data-route="graphs">Графы и пути</button>
+  <button data-route="random">Случайность и оценка</button>
+  <button data-route="all">Весь граф</button>
+</header>
+<div id="graph"></div>
+<div class="legend">
+  <span><i class="dot" style="background:var(--f)"></i>Фундамент</span>
+  <span><i class="dot" style="background:var(--t)"></i>Инструмент</span>
+  <span><i class="dot" style="background:var(--a)"></i>Приложение</span>
+  <span><i class="dot" style="background:var(--c)"></i>Проверка</span>
+</div>
+<div id="panel"><i>Кликните по узлу, чтобы открыть карточку темы.</i></div>
+<div id="err">Не удалось загрузить <b>graph.json</b>. Открывайте страницу через веб-сервер (GitHub Pages или <code>python -m http.server</code>) — с диска браузер блокирует fetch.</div>
+
+<script>
+const GRAPH_URL = "graph.json";
+const BOOK_ROOT = "";            // префикс ссылок на главы, например "/test-abstracts/"
+const STORE_KEY = "ta_graph_passed";
+const COLORS = {fund:"#3b82f6",tool:"#10b981",app:"#f59e0b",check:"#a855f7"};
+const TYPE_LABEL = {fund:"Фундамент",tool:"Инструмент",app:"Приложение",check:"Проверка"};
+
+let data, network, selected = null;
+let passed = new Set(JSON.parse(localStorage.getItem(STORE_KEY) || "[]"));
+
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify([...passed])); }
+
+// предпосылки узла: источники рёбер basis/test (analog не блокирует)
+function reqOf(id){ return data.edges.filter(e=>e.to===id && (e.type==="basis"||e.type==="test")).map(e=>e.from); }
+function nextOf(id){ return data.edges.filter(e=>e.from===id && (e.type==="basis"||e.type==="applies"||e.type==="next"||e.type==="analog")).map(e=>e.to); }
+function stateOf(id){
+  if(passed.has(id)) return "done";
+  const req = reqOf(id);
+  if(req.length===0 || req.every(r=>passed.has(r))) return "open";
+  return "locked";
+}
+
+fetch(GRAPH_URL).then(r=>{if(!r.ok)throw 0;return r.json();}).then(d=>{
+  data = d; build();
+}).catch(()=>{ document.getElementById("err").style.display="block"; });
+
+function buildNode(n){
+  const st = stateOf(n.id);
+  return { id:n.id, label:n.title, group:n.type, level:n.level||2,
+    font:{color: st==="locked" ? "#7c88a3" : "#e7ecf5", size:13},
+    shape:"box", margin:10,
+    color:{ background: st==="done" ? COLORS[n.type] : "#131a2b",
+            border: st==="open" ? COLORS[n.type] : "#3a4358",
+            highlight:{background:COLORS[n.type],border:"#fff"} },
+    borderWidth: st==="open" ? 2 : 1,
+    opacity: st==="locked" ? 0.45 : 1 };
+}
+function buildEdges(){
+  const ETYPE = {
+    basis:{dashes:false, color:"#5b6b8f", width:2, arrows:"to"},
+    applies:{dashes:false, color:"#3a6b4f", width:1.5, arrows:"to"},
+    analog:{dashes:[6,6], color:"#7c88a3", width:1.5, arrows:"none"},
+    next:{dashes:false, color:"#2e3a58", width:1, arrows:"to"},
+    test:{dashes:false, color:"#4a3a58", width:1.5, arrows:"to"}
+  };
+  return data.edges.map(e=>{
+    const base = ETYPE[e.type]||ETYPE.basis;
+    return {from:e.from, to:e.to, label:e.type==="analog"?"≈":e.label||"", ...base,
+      font:{size:10,color:"#8fa3c8",strokeWidth:0}, labelHighlightBold:false};
+  });
+}
+function build(){
+  const nodes = data.nodes.map(n=>{
+    const st = stateOf(n.id);
+    const color = st==="locked" ? "#3a4358" : COLORS[n.type];
+    return {
+      id:n.id, label:n.title, group:n.type, title:null,
+      level:n.level||2,
+      font:{color: st==="locked" ? "#7c88a3" : "#e7ecf5", size:13},
+      shape:"box", margin:10,
+      color:{ background: st==="done" ? COLORS[n.type] : "#131a2b",
+              border: st==="open" ? COLORS[n.type] : "#3a4358",
+              highlight:{background:COLORS[n.type],border:"#fff"} },
+      font_color_holder:null,
+      borderWidth: st==="open" ? 2 : 1,
+      opacity: st==="locked" ? 0.45 : 1
+    };
+  });
+  const ETYPE = {
+    basis:{dashes:false, color:"#5b6b8f", width:2, arrows:"to"},
+    applies:{dashes:false, color:"#3a6b4f", width:1.5, arrows:"to"},
+    analog:{dashes:[6,6], color:"#7c88a3", width:1.5, arrows:"none"},
+    next:{dashes:false, color:"#2e3a58", width:1, arrows:"to"},
+    test:{dashes:false, color:"#4a3a58", width:1.5, arrows:"to"}
+  };
+  const edges = data.edges.map(e=>{
+    const base = ETYPE[e.type]||ETYPE.basis;
+    return {from:e.from, to:e.to, label:e.type==="analog"?"≈":e.label||"", ...base,
+      font:{size:10,color:"#8fa3c8",strokeWidth:0}, labelHighlightBold:false};
+  });
+
+  const container = document.getElementById("graph");
+  network = new vis.Network(container, {nodes:new vis.DataSet(nodes), edges:new vis.DataSet(edges)}, {
+    layout:{hierarchical:{enabled:true, direction:"LR", sortMethod:"directed", levelSortMethod:"hubsize", nodeSpacing:120, treeSpacing:220}},
+    physics:{enabled:false},
+    interaction:{hover:true},
+    nodes:{font:{multi:false}}
+  });
+  network.on("click", p=>{ if(p.nodes.length) openPanel(p.nodes[0]); });
+  updateCounter();
+}
+
+function updateCounter(){
+  document.getElementById("counter").textContent = passed.size + " из " + data.nodes.length;
+}
+
+function openPanel(id){
+  selected = id;
+  const n = data.nodes.find(x=>x.id===id);
+  const st = stateOf(id);
+  const req = reqOf(id).map(r=>`<a href="#" data-go="${r}">${data.nodes.find(x=>x.id===r).title}</a>`).join("") || "—";
+  const nxt = nextOf(id).map(r=>`<a href="#" data-go="${r}">${data.nodes.find(x=>x.id===r).title}</a>`).join("") || "—";
+  const t = n.card.task;
+  document.getElementById("panel").innerHTML = `
+    <h2>${n.title} ${st==="done"?'<span class="done-badge">✓ пройдено</span>':st==="locked"?'<span style="color:#7c88a3">· закрыто</span>':''}</h2>
+    <span class="tag" style="background:${COLORS[n.type]}">${TYPE_LABEL[n.type]}</span>
+    <div class="sec"><h4>Что это</h4>${n.card.short}</div>
+    <div class="sec"><h4>Зачем учить</h4>${n.card.why}</div>
+    <div class="sec"><h4>Где встречается</h4>${n.card.where}</div>
+    <div class="sec links"><h4>Откуда (что нужно до)</h4>${req}</div>
+    <div class="sec links"><h4>Куда дальше</h4>${nxt}</div>
+    ${t?`<div class="task-box"><b>Задачка на минуту</b><p>${t.q}</p>
+      <details><summary>Подсказка</summary><p>${t.hint}</p></details>
+      <details><summary>Ответ</summary><p>${t.a}</p><p><i>Мостик: ${t.bridge}</i></p></details></div>`:""}
+    <div class="btns">
+      <a href="${BOOK_ROOT}${n.page}">Открыть главу</a>
+      <button onclick="toggleDone('${id}')">${st==="done"?"Снять отметку":"Отметить пройденным"}</button>
+    </div>`;
+  document.querySelectorAll("#panel [data-go]").forEach(a=>a.onclick=ev=>{ev.preventDefault();openPanel(a.dataset.go);});
+}
+
+window.toggleDone = function(id){
+  if(passed.has(id)) passed.delete(id); else passed.add(id);
+  save(); updateCounter();
+  network.destroy(); build(); openPanel(id);
+};
+
+// маршруты
+document.querySelectorAll("header [data-route]").forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll("header [data-route]").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    const r = b.dataset.route;
+    if(r==="all" || !data.routes[r]){
+      network.setData(new vis.DataSet(data.nodes.map(buildNode)), new vis.DataSet(buildEdges()));
+      return;
+    }
+    const keep = new Set(data.routes[r].nodes);
+    const all = data.nodes.map(n=>n.id);
+    // простая и надёжная подсветка: остальным узлам приглушаем стиль
+    const pathEdges = new Set(data.edges.filter(e=>keep.has(e.from)&&keep.has(e.to)).map(e=>e.from+"|"+e.to));
+    network.setData(new vis.DataSet(data.nodes.map(n=>{
+      const inPath = keep.has(n.id);
+      return { id:n.id, label:n.title, group:n.type, level:n.level||2,
+        font:{color: inPath?"#e7ecf5":"#55607a", size:13},
+        shape:"box", margin:10,
+        color:{ background: inPath ? COLORS[n.type] : "#131a2b",
+                border: inPath ? "#ffffff" : "#2e3a58",
+                highlight:{background:COLORS[n.type],border:"#fff"} },
+        borderWidth: inPath?2:1, opacity: inPath?1:0.25 };
+    })), new vis.DataSet(data.edges.map(e=>{
+      const inPath = keep.has(e.from)&&keep.has(e.to);
+      const base = ETYPE[e.type]||ETYPE.basis;
+      return {from:e.from, to:e.to, label:e.type==="analog"?"≈":e.label||"", ...base,
+        color: inPath?base.color:"#1c2334",
+        font:{size:10,color:inPath?"#8fa3c8":"#3a4358",strokeWidth:0}, labelHighlightBold:false};
+    })));
+  };
+});
+</script>
+</body>
+</html>

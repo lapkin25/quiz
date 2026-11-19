@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Парадокс дней рождения — симуляция</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 1rem; background: #f5f7fa; color: #222; }
+    h1, h2 { margin-top: 0.5rem; }
+    .panel { background: white; padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); margin-bottom: 1rem; }
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+    .col { flex: 1 1 280px; }
+    label { font-weight: 500; display: block; margin-top: 0.75rem; }
+    input[type="range"] { width: 100%; margin-top: 0.25rem; }
+    button { background: #005faa; color: white; border: none; padding: 0.6rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.95rem; }
+    button:hover { background: #004a85; }
+    #chart { width: 100%; height: 240px; }
+    #histogram { width: 100%; height: 180px; }
+    .stat { font-size: 1.1rem; font-weight: 600; color: #005faa; }
+    details summary { cursor: pointer; color: #555; }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::after { content: "▶"; float: right; }
+    details[open] summary::after { content: "▼"; }
+    .legend { display: flex; gap: 0.8rem; margin-top: 0.4rem; font-size: 0.85rem; }
+    .dot { width: 12px; height: 12px; display: inline-block; border-radius: 50%; margin-right: 0.3rem; }
+  </style>
+</head>
+<body>
+  <h1>Парадокс дней рождения</h1>
+
+  <div class="panel">
+    <div class="row">
+      <div class="col">
+        <label>Сколько людей в комнате?</label>
+        <input type="range" id="n-slider" min="2" max="100" value="23" />
+        <div style="display:flex;justify-content:space-between;font-weight:500;">
+          <span>2</span><span id="n-display">23</span><span>100</span>
+        </div>
+
+        <label>Точная вероятность совпадения хотя бы у двух людей:</label>
+        <div class="stat" id="exact-prob">50.73%</div>
+
+        <p style="margin-top:0.5rem;color:#555;">
+          Это не «вероятность, что кто-то совпадает с вами», а «хотя бы одна пара совпадает».
+        </p>
+
+        <button id="run-mc">Провести опыт ×1000</button>
+        <div style="margin-top:0.5rem;">
+          Монте-Карло частота: <span class="stat" id="mc-freq">—</span>
+        </div>
+      </div>
+
+      <div class="col">
+        <h3>Кривая вероятности</h3>
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Гистограмма: в какие дни чаще всего происходит совпадение</h3>
+    <canvas id="histogram"></canvas>
+  </div>
+
+  <details>
+    <summary>Формула и объяснение</summary>
+    <p>
+      Вероятность <b>всех разных</b>:
+      $$
+      P_{\text{разные}} = \frac{365}{365} \cdot \frac{364}{365} \cdots \frac{365-n+1}{365}
+      = \prod_{i=0}^{n-1} \frac{365 - i}{365}
+      $$
+      Тогда вероятность <b>хотя бы одного совпадения</b>: $P = 1 - P_{\text{разные}}$.
+    </p>
+    <p>
+      Интуитивная ловушка: мы думаем про «меня и кого-то», но в комнате есть $\frac{n(n-1)}{2}$ пар.
+      При $n=23$ это уже 253 пары — поэтому 50% достигается так рано.
+    </p>
+    <hr/>
+    <p><b>Мостик к другим темам:</b></p>
+    <ul>
+      <li><b>Хеш-таблицы:</b> 23 ключа в 365 корзинах — уже заметная вероятность коллизии.</li>
+      <li><b>Наивный Байес / матрица неточности:</b> парадокс 99% тестов и 1% больных — та же ошибка интуиции о вероятностях.</li>
+    </ul>
+  </details>
+
+  <script>
+    const nEl = document.getElementById('n-slider');
+    const nDisp = document.getElementById('n-display');
+    const exactEl = document.getElementById('exact-prob');
+    const mcEl = document.getElementById('mc-freq');
+    const runBtn = document.getElementById('run-mc');
+
+    // --- Точная вероятность ---
+    function exactProbability(n) {
+      let pDiff = 1;
+      for (let i = 0; i < n; i++) {
+        pDiff *= (365 - i) / 365;
+      }
+      return 1 - pDiff;
+    }
+
+    // --- Кривая: данные и контекст объявлены ДО первого вызова update() ---
+    const ctx = document.getElementById('chart').getContext('2d');
+    let curveData = [];
+
+    function drawCurve() {
+      curveData = [];
+      for (let n = 2; n <= 100; n++) {
+        curveData.push({ x: n, y: exactProbability(n) });
+      }
+
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      const padding = 40;
+      const w = ctx.canvas.width - padding * 2;
+      const h = ctx.canvas.height - padding * 2;
+
+      function pxX(x) { return padding + (x - 2) / (100 - 2) * w; }
+      function pxY(y) { return padding + h - y * h; }
+
+      // Оси
+      ctx.strokeStyle = '#ccc';
+      ctx.beginPath();
+      ctx.moveTo(padding, padding);
+      ctx.lineTo(padding, ctx.canvas.height - padding);
+      ctx.moveTo(padding, ctx.canvas.height - padding);
+      ctx.lineTo(ctx.canvas.width - padding, ctx.canvas.height - padding);
+      ctx.stroke();
+
+      // Подписи
+      ctx.fillStyle = '#555';
+      ctx.font = '12px system-ui';
+      ctx.fillText('0%', padding + 5, ctx.canvas.height - 15);
+      ctx.fillText('50%', padding + 5, pxY(0.5) - 5);
+      ctx.fillText('100%', padding + 5, padding + 10);
+      ctx.fillText('2', padding, ctx.canvas.height - 10);
+      ctx.fillText('100', ctx.canvas.width - 30, ctx.canvas.height - 10);
+
+      // Кривая
+      ctx.strokeStyle = '#005faa';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      curveData.forEach((p, i) => {
+        if (i === 0) ctx.moveTo(pxX(p.x), pxY(p.y));
+        else ctx.lineTo(pxX(p.x), pxY(p.y));
+      });
+      ctx.stroke();
+
+      // Пунктиры 50% и 99%
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = '#aaa';
+      ctx.beginPath();
+      ctx.moveTo(padding, pxY(0.5));
+      ctx.lineTo(ctx.canvas.width - padding, pxY(0.5));
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(padding, pxY(0.99));
+      ctx.lineTo(ctx.canvas.width - padding, pxY(0.99));
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Маркер текущего n — рисуем последним, поверх пунктиров
+      const curN = +nEl.value;
+      const curP = exactProbability(curN);
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#005faa';
+      ctx.beginPath();
+      ctx.arc(pxX(curN), pxY(curP), 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // --- Гистограмма ---
+    const hCtx = document.getElementById('histogram').getContext('2d');
+    const histogramData = new Array(365).fill(0);
+
+    function resetHistogram() {
+      histogramData.fill(0);
+      drawHistogram();
+    }
+
+    function drawHistogram() {
+      hCtx.clearRect(0, 0, hCtx.canvas.width, hCtx.canvas.height);
+      const padding = 20;
+      const w = hCtx.canvas.width - padding * 2;
+      const h = hCtx.canvas.height - padding * 2;
+      const barW = Math.max(1, w / 365);
+
+      const max = Math.max(...histogramData);
+      if (!max) return;
+
+      hCtx.fillStyle = '#005faa';
+      for (let d = 0; d < 365; d++) {
+        const v = histogramData[d];
+        const barH = v / max * h;
+        hCtx.fillRect(padding + d * barW, hCtx.canvas.height - padding - barH, barW, barH);
+      }
+    }
+
+    // --- Обновление по слайдеру (теперь переменные уже объявлены) ---
+    function update() {
+      const n = +nEl.value;
+      nDisp.textContent = n;
+      const p = exactProbability(n);
+      exactEl.textContent = (p * 100).toFixed(2) + '%';
+      drawCurve();
+      resetHistogram();
+    }
+
+    nEl.addEventListener('input', update);
+
+    // --- Монте-Карло ---
+    runBtn.addEventListener('click', () => {
+      const n = +nEl.value;
+      const trials = 1000;
+      let matches = 0;
+
+      histogramData.fill(0);
+
+      for (let t = 0; t < trials; t++) {
+        const seen = new Set();
+        let hasMatch = false;
+        let matchDay = -1;
+
+        for (let i = 0; i < n; i++) {
+          const day = Math.floor(Math.random() * 365);
+          if (seen.has(day)) {
+            hasMatch = true;
+            matchDay = day;
+            break;
+          }
+          seen.add(day);
+        }
+
+        if (hasMatch) {
+          matches++;
+          histogramData[matchDay] += 1;
+        }
+      }
+
+      mcEl.textContent = ((matches / trials) * 100).toFixed(2) + '%';
+      drawHistogram();
+    });
+
+    update(); // первый вызов — в самом конце, когда всё объявлено
+  </script>
+</body>
+</html>
