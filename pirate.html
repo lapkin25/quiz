@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Пиратский квиз — пульт ведущего</title>
+<style>
+  :root{
+    --sea:#0d2b45; --sea2:#14405f; --parch:#f4e9cf; --ink:#2b2317;
+    --gold:#c9a227; --gold2:#e8c95c; --trap:#a33b2e; --ok:#2e7d4f; --empty:#8a8378;
+  }
+  *{box-sizing:border-box}
+  body{font-family:Georgia,'Times New Roman',serif;background:var(--sea);color:var(--parch);margin:0;padding:16px}
+  h1{font-size:1.5rem;margin:0 0 4px;letter-spacing:.5px}
+  h1 .skull{filter:sepia(1) saturate(3)}
+  .sub{color:#bcd3e0;font-size:.9rem;margin-bottom:12px}
+  .panel{background:var(--parch);color:var(--ink);border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+  .panel h2{margin:0 0 8px;font-size:1.05rem;border-bottom:2px solid var(--gold);padding-bottom:4px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{font-family:inherit;font-size:.92rem;padding:7px 12px;border-radius:6px;border:1px solid #7a6a45;
+    background:#e6d3a3;color:var(--ink);cursor:pointer}
+  button:hover{background:var(--gold2)}
+  button.primary{background:var(--sea2);color:#fff;border-color:var(--sea)}
+  button.danger{background:var(--trap);color:#fff;border-color:#7c2a20}
+  button:disabled{opacity:.45;cursor:default}
+  input,select{font-family:inherit;padding:6px 8px;border-radius:6px;border:1px solid #7a6a45;background:#fffdf5;font-size:.95rem}
+  /* поле */
+  #board{display:grid;gap:8px;max-width:560px}
+  .cell{aspect-ratio:1;border-radius:8px;border:2px solid #9b8a5f;background:#e9dfc4;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:1.4rem;user-select:none;position:relative}
+  .cell.open-treasure{background:var(--gold2);border-color:var(--gold)}
+  .cell.open-empty{background:#d8d2c2;border-color:var(--empty);color:var(--empty)}
+  .cell.open-trap{background:#e9b8ae;border-color:var(--trap)}
+  .cell.open-chest{background:#cfd9ea;border-color:var(--sea2)}
+  .cell .tag{position:absolute;bottom:2px;right:5px;font-size:.65rem;color:#5c4d2e}
+  .cell.dead{opacity:.55}
+  /* команды */
+  .team{border:1px solid #b7a670;border-radius:8px;padding:8px 10px;margin-bottom:8px;background:#fdf6e0}
+  .team b{font-size:1rem}
+  .team .stats{font-size:.9rem;margin:4px 0}
+  .team .stats span{margin-right:10px}
+  .mini{padding:3px 8px;font-size:.8rem}
+  .air{display:inline-block;background:#cde3f2;border:1px solid #6f9cbd;border-radius:4px;
+    width:16px;height:22px;margin:0 2px;vertical-align:middle}
+  /* карточка задания */
+  .task-card{background:#fdf6e0;border:1px solid #7a6a45;border-radius:8px;padding:12px;margin-top:8px}
+  .task-card .kind{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:10px;color:#fff;margin-bottom:6px}
+  .k-empty{background:var(--empty)} .k-trap{background:var(--trap)}
+  .k-treasure{background:var(--gold)} .k-chest{background:var(--sea2)}
+  .task-card h3{margin:4px 0 8px}
+  .timer{font-size:1.6rem;font-weight:bold;color:var(--trap)}
+  details{margin-top:6px}
+  summary{cursor:pointer;color:#7a5c14}
+  .node-ref{font-size:.8rem;color:#6b5a33;margin-top:6px}
+  /* итог */
+  table{border-collapse:collapse;width:100%;font-size:.9rem}
+  th,td{border:1px solid #b7a670;padding:5px 8px;text-align:left}
+  th{background:#e9dfc4}
+  #report pre{background:#fdf6e0;border:1px dashed #7a6a45;padding:10px;border-radius:6px;white-space:pre-wrap;font-size:.85rem}
+  .hidden{display:none}
+  .phase-banner{background:var(--sea2);color:#fff;border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:1rem}
+  .phase-banner b{color:var(--gold2)}
+</style>
+</head>
+<body>
+<h1><span class="skull">&#9878;</span> Пиратский квиз — пульт ведущего</h1>
+<div class="sub">Задания «на суше» и погружения за кладом. Всё в одном файле: работает с диска, без интернета.</div>
+
+<div class="phase-banner" id="phaseBanner">Настройка партии</div>
+
+<div class="panel" id="setup">
+  <h2>Партия</h2>
+  <div class="row">
+    <label>Поле:
+      <select id="sizeSel">
+        <option value="4">4 на 4 — до ~15 минут</option>
+        <option value="5">5 на 5 — до ~25 минут</option>
+      </select>
+    </label>
+    <label>Сундуки (командные задания): <input type="checkbox" id="chestChk" checked></label>
+    <button class="primary" id="newGame">Новая партия</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <input type="text" id="teamName" placeholder="Название команды" size="18">
+    <button id="addTeam">+ команда</button>
+    <span style="color:#6b5a33;font-size:.85rem">Команд — 5–7 человек каждая; имена любые.</span>
+  </div>
+</div>
+
+<div class="panel hidden" id="shorePanel">
+  <h2>Фаза 1. На суше: добыча кислорода</h2>
+  <div class="row">
+    <button class="primary" id="giveTask">Выдать задание на суше</button>
+    <span class="timer hidden" id="timer">03:00</span>
+    <button class="hidden" id="timerBtn">Старт таймер</button>
+    <span id="shorePool" style="color:#6b5a33;font-size:.85rem"></span>
+  </div>
+  <div id="shoreTask" class="hidden"></div>
+  <div id="teamsList" style="margin-top:8px"></div>
+  <div style="margin-top:8px;color:#6b5a33;font-size:.85rem">
+    Награда за выполненное задание — кислород по сложности. Бонус «мостик»: назвали связь с другой темой — +1 карточка.
+  </div>
+</div>
+
+<div class="panel hidden" id="divePanel">
+  <h2>Фаза 2. Погружение: карта сокровищ</h2>
+  <div style="margin-bottom:8px;color:#6b5a33;font-size:.85rem">
+    Выберите команду, затем клетку. Одна клетка = один кислород. Ловушка: справились — сокровище, нет — теряете остаток кислорода.
+  </div>
+  <div class="row" style="margin-bottom:10px">
+    <label>Открывает: <select id="whoOpen"></select></label>
+  </div>
+  <div id="board"></div>
+</div>
+
+<div class="panel hidden" id="trapPanel">
+  <h2>Ловушка!</h2>
+  <div id="trapBody"></div>
+</div>
+
+<div class="panel hidden" id="report">
+  <h2>Итоги и бланк добычи</h2>
+  <table id="scoreTable"></table>
+  <p style="margin-top:10px"><b>Бланк для переноса на карту знаний:</b> список узлов графа, которые команды «добыли».</p>
+  <div id="report">
+    <pre id="nodesList"></pre>
+  </div>
+  <button id="copyNodes">Скопировать список узлов</button>
+</div>
+
+<div class="panel hidden" id="endPanel">
+  <div class="row">
+    <button class="danger" id="finishBtn">Завершить партию и подвести итоги</button>
+  </div>
+</div>
+
+<script type="application/json" id="tasks-embed">{"meta": {"version": 1, "pools": {"treasure": 6, "trap": 5, "chest": 5}, "note": "kind: empty=разминка, trap=ловушка, treasure=сокровище, chest=сундук (командный)"}, "tasks": [{"node": "vectors", "title": "Векторы", "layer": "fundamental", "level": 1, "kind": "empty", "q": "Корабль идёт 3 узла на восток и 4 узла на север. Какова его скорость (модуль вектора)?", "hint": "Пифагор ещё не отменён.", "a": "Скорость = sqrt(3^2+4^2) = 5 узлов. Вектор — это пара чисел, а его длина — корень из суммы квадратов.", "bridge": "Мостик: матрица — это способ преобразовать сразу все такие векторы разом."}, {"node": "matrix", "title": "Матрицы", "layer": "fundamental", "level": 2, "kind": "empty", "q": "Поворот на 90 градусов против часовой: какая матрица это делает?", "hint": "Куда переходят базисные векторы? Они и есть столбцы матрицы.", "a": "[[0,-1],[1,0]]: единичный вектор по оси x уходит наверх, по оси y — влево.", "bridge": "Мостик: в МНК матрица переводит данные в предсказания — тот же механизм."}, {"node": "eigenvalues", "title": "Собственные значения", "layer": "fundamental", "level": 2, "kind": "empty", "q": "Матрица растягивает всё в 3 раза вдоль одной оси и не трогает перпендикулярное направление. Какое собственное значение у «нетронутого» направления?", "hint": "Собственный вектор — тот, что не поворачивается. Только растягивается.", "a": "1 — вектор остался собой, значит множитель единичный.", "bridge": "Мостик: главные направления разброса данных — это и есть собственные векторы ковариационной матрицы."}, {"node": "sets", "title": "Множества", "layer": "fundamental", "level": 3, "kind": "trap", "q": "Правда ли, что образ пересечения множеств совпадает с пересечением их образов?", "hint": "Попробуйте отображение, которое склеивает разные элементы в один.", "a": "НЕТ, не всегда. Образ пересечения — лишь подмножество пересечения образов. Контрпример: f(1)=f(2)=a, X={1}, Y={2}: образы пересекаются в a, а сами множества — нет.", "bridge": "Мостик: для объединения равенство верно, для пересечения — нет. Такая асимметрия — повод для ловушки в любой теории."}, {"node": "logic", "title": "Логика", "layer": "fundamental", "level": 1, "kind": "empty", "q": "Сколько строк в таблице истинности формулы с 4 переменными? А с 10?", "hint": "Каждая переменная — два варианта.", "a": "4 переменных: 2^4 = 16 строк. 10 переменных: 2^10 = 1024. Таблица растёт взрывообразно — потому и нужны умные проверки, а не перебор.", "bridge": "Мостик: булевы функции — это та же таблица, но записанная формулой."}, {"node": "boolean", "title": "Булевы функции", "layer": "fundamental", "level": 3, "kind": "empty", "q": "Правда ли, что система {сложение по модулю 2, конъюнкция} полна?", "hint": "Что нельзя получить из них? Подумайте про константу 1 и отрицание.", "a": "НЕТ, не полна: из ⊕ и ∧ нельзя получить ни константу 1, ни отрицание. Все выражения сохраняют 0. Полнота требует, например, добавить константу 1 или отрицание.", "bridge": "Мостик: {AND, OR, NOT} полна, а {AND, XOR} — нет. Состав системы важнее количества функций."}, {"node": "combinatorics", "title": "Комбинаторика", "layer": "fundamental", "level": 1, "kind": "empty", "q": "Сколькими способами выбрать два «орла» из четырёх монет? Порядок не важен.", "hint": "Это сочетания: C из 4 по 2.", "a": "C(4,2) = 6. Порядок не важен, поэтому делим перестановки 4·3 на 2.", "bridge": "Мостик: та же формула считает число исходов в биномиальном распределении."}, {"node": "probability", "title": "Вероятность", "layer": "fundamental", "level": 2, "kind": "empty", "q": "Бросаем два кубика. Какова вероятность, что сумма равна 7?", "hint": "Перечислите благоприятные пары: их шесть.", "a": "6 из 36 = 1/6 ≈ 0,167. Пары: (1,6),(2,5),(3,4),(4,3),(5,2),(6,1) — сумма 7 встречается чаще любой другой.", "bridge": "Мостик: случайная величина «сумма» имеет целое распределение — следующий узел."}, {"node": "random", "title": "Случайные величины", "layer": "fundamental", "level": 2, "kind": "empty", "q": "Бросаем монету 2 раза. Каково матожидание числа орлов?", "hint": "Каждый бросок даёт в среднем 0,5 орла.", "a": "E = 0,5 + 0,5 = 1. Линейность матожидания работает даже без независимости.", "bridge": "Мостик: усредняя много случайностей, Монте-Карло добирается до детерминированного ответа."}, {"node": "graphs", "title": "Графы", "layer": "fundamental", "level": 2, "kind": "empty", "q": "В графе 4 вершины, степень каждой равна 3. Сколько рёбер?", "hint": "Посчитайте степени двумя способами.", "a": "4·3/2 = 6. Сумма степеней всегда равна удвоенному числу рёбер — рукопожатия считают дважды.", "bridge": "Мостик: матрица смежности кодирует тот же граф — графы и матрицы родственники."}, {"node": "onotation", "title": "O-нотация", "layer": "fundamental", "level": 2, "kind": "empty", "q": "Алгоритм A работает за O(n^2), B — за O(n log n). При n = 1000 во сколько раз B быстрее (грубо)?", "hint": "Сравните порядки: 10^6 против ~10^4.", "a": "Примерно в 100 раз: n^2 = 1 000 000, n log n ≈ 10 000. При больших n разница становится решающей.", "bridge": "Мостик: без O-нотации нельзя обосновать выбор алгоритма — дальше вся теория алгоритмов держится на ней."}, {"node": "recursion", "title": "Рекурсия", "layer": "fundamental", "level": 1, "kind": "empty", "q": "Факториал через рекурсию: сколько кадров в стеке при вызове fact(10)?", "hint": "Каждый вызов ждёт следующий.", "a": "10 кадров (плюс базовый выход) — глубина равна n. Именно поэтому при n = 100 000 стек переполнится, а цикл — нет.", "bridge": "Мостик: динамическое программирование — та же рекурсия, но без стека и без повторов."}, {"node": "gauss", "title": "СЛАУ и метод Гаусса", "layer": "tool", "level": 2, "kind": "empty", "q": "Две прямые-уравнения параллельны. Сколько решений у системы?", "hint": "Параллельные прямые не пересекаются... или совпадают?", "a": "Если строго параллельны — решений нет; если совпадают — бесконечно много. Гаусс это покажет: строка вида 0 = ненулевое число или строка нулей.", "bridge": "Мостик: МНК существует именно потому, что точных решений иногда нет — ищем лучшее приближение."}, {"node": "mnk", "title": "МНК", "layer": "tool", "level": 3, "kind": "trap", "q": "Модель с квадратичной ошибкой и модель с модульной: одна точка-выброс. Кто пострадает сильнее и почему?", "hint": "Возведите числа 10 и 1 в квадрат и сравните с модулем.", "a": "Квадратичная: выброс 10 даёт ошибку 100 против 10 у модуля — квадрат amplified выброс в разы. Поэтому МНК чувствителен к выбросам, а модульная функция — нет. Зато МНК имеет явную формулу решения.", "bridge": "Мостик: регрессия наследует эту чувствительность — проверяйте данные на выбросы до обучения."}, {"node": "bayes", "title": "Формула Байеса", "layer": "tool", "level": 3, "kind": "trap", "q": "Тест точен на 99%. Болезнь есть у 1% людей. Тест положительный — какова вероятность болезни?", "hint": "Сравните 99% от маленькой группы здоровых с 1% большой группы больных.", "a": "Примерно 50%: из 10 000 человек больных 100, из них положительных ~99; здоровых 9900, ложных срабатываний ~99. Итого 99/(99+99) ≈ 50%. Точность теста — не вероятность болезни!", "bridge": "Мостик: та же ошибка живёт в матрице неточности — точность 99% у модели «все здоровы»."}, {"node": "montecarlo", "title": "Монте-Карло", "layer": "tool", "level": 2, "kind": "empty", "q": "Как оценить площадь круга вписанного в квадрат, бросая случайные точки?", "hint": "Какая доля точек попадает в круг и что это даёт?", "a": "Доля попавших в круг ≈ π/4. Умножаем на площадь квадрата — получаем площадь круга, а из неё и π. Ошибка падает как 1/sqrt(N).", "bridge": "Мостик: случайные величины в среднем дают детерминированный ответ — это свойство закона больших чисел."}, {"node": "sorting", "title": "Сортировки", "layer": "tool", "level": 2, "kind": "empty", "q": "Какая из сортировок устойчива и даёт O(n log n) в худшем случае: пузырёк или слияние?", "hint": "Пузырёк — O(n^2) в худшем случае.", "a": "Слияние: гарантированные O(n log n) и устойчивость. Пузырёк стабилен, но медлен в худшем случае.", "bridge": "Мостик: сортировка — фундамент бинарного поиска: без порядка поиск не работает."}, {"node": "binsearch", "title": "Бинарный поиск", "layer": "tool", "level": 1, "kind": "empty", "q": "В отсортированном массиве 1000 элементов. Сколько шагов максимум у бинарного поиска?", "hint": "Сколько раз 1000 делится на 2 пополам?", "a": "Не более 10: 2^10 = 1024 ≥ 1000. Логарифм съедает размер массива.", "bridge": "Мостик: та же логарифмика живёт в деревьях поиска и B-tree индексах."}, {"node": "trees", "title": "Деревья поиска", "layer": "tool", "level": 2, "kind": "empty", "q": "BST из чисел 1..10 вставленных по возрастанию: какова высота дерева?", "hint": "Каждый следующий элемент идёт только вправо.", "a": "10 — дерево выродилось в список. Поэтому нужны балансировка (AVL, красно-чёрные) — иначе O(n) вместо O(log n).", "bridge": "Мостик: дерево — это граф с особым свойством: связный и без циклов."}, {"node": "hashtables", "title": "Хеш-таблицы", "layer": "tool", "level": 3, "kind": "trap", "q": "Сколько людей должно быть в комнате, чтобы вероятность совпадения дней рождения хотя бы у двоих превысила 50%?", "hint": "Не делите 365 пополам. Считайте пары, а не людей.", "a": "Всего 23 человека: пар n(n-1)/2 = 253, и вероятность совпадения уже ≈ 50,7%. Интуиция говорит 180+, арифметика — 23.", "bridge": "Мостик: коллизии в хеш-таблицах — тот же феномен; и та же переоценка интуиции, что в парадоксе 99%."}, {"node": "bfsdfs", "title": "Обходы BFS и DFS", "layer": "tool", "level": 2, "kind": "empty", "q": "Граф невзвешенный. Какой обход гарантированно находит кратчайший путь: BFS или DFS?", "hint": "BFS идёт вширь слоями, DFS — вглубь.", "a": "BFS: он обходит вершины по дистанции от старта, поэтому первая найденная — кратчайшая. DFS кратчайшего не гарантирует.", "bridge": "Мостик: добавьте веса — и BFS перестаёт работать, нужен Дейкстра."}, {"node": "dijkstra", "title": "Алгоритм Дейкстры", "layer": "tool", "level": 2, "kind": "empty", "q": "Дейкстра и отрицательные веса рёбер: работает?", "hint": "Жадный выбор 'ближайшей' вершины предполагает, что дальше дешевле не станет.", "a": "НЕТ: с отрицательными весами жадность ломается, путь через «далёкую» вершину может стать дешевле позже. Нужен Беллман-Форд.", "bridge": "Мостик: A* — Дейкстра с эвристикой: навигаторы так и работают."}, {"node": "dp", "title": "Динамическое программирование", "layer": "tool", "level": 2, "kind": "empty", "q": "Фибоначчи наивной рекурсией — O(φ^n), через ДП — O(n). Что именно экономит ДП?", "hint": "Сколько раз пересчитывается fib(3) внутри fib(10)?", "a": "ДП хранит уже посчитанные значения: каждый fib(k) вычисляется один раз. Экономия — от устранения повторных подзадач.", "bridge": "Мостик: хеш-таблица кэширует подзадачи — тот же инструмент, другая роль."}, {"node": "regression", "title": "Линейная регрессия", "layer": "app", "level": 2, "kind": "treasure", "q": "Через 2 точки прямая проходит однозначно. А что делать с 3 точками, которые на одну прямую не ложатся?", "hint": "Точного решения нет — нужен компромисс.", "a": "МНК: минимизируем сумму квадратов вертикальных отклонений — получаем лучшую прямую из всех возможных.", "bridge": "Мостик: МНК и регрессия — один механизм: инструмент становится приложением, как только появляются данные."}, {"node": "naivebayes", "title": "Наивный Байес", "layer": "app", "level": 2, "kind": "treasure", "q": "Слово «бесплатно» встречается в 40% спама и 5% обычной почты. Письмо с этим словом при априоре 50/50 — спам?", "hint": "Отношение правдоподобий: 0,40 против 0,05.", "a": "P(спам|слово) = 0,4/(0,4+0,05) ≈ 0,889. Слово повышает ставку почти в 9 раз.", "bridge": "Мостик: «наивный» — потому что слова считаются независимыми; работает на удивление хорошо и строится прямо из формулы Байеса."}, {"node": "confusion", "title": "Матрица неточности", "layer": "app", "level": 3, "kind": "trap", "q": "Модель говорит «здоров» всем подряд. На выборке с 1% больных её точность?", "hint": "Сколько будет правильных ответов, если не ошибиться можно, только угадав здоровых?", "a": "99% — формально идеально, а пользы ноль: ни одного больного модель не поймала. Точность обманчива при дисбалансе классов.", "bridge": "Мостик: тот же парадокс, что в задаче про Байеса: точность теста не равна ценности теста."}, {"node": "pi_est", "title": "Оценка числа π", "layer": "app", "level": 2, "kind": "treasure", "q": "10000 случайных точек брошено в квадрат, 7854 попали в вписанный круг. Оценка π?", "hint": "Доля попаданий ≈ π/4.", "a": "π ≈ 4·7854/10000 = 3,1416. Монте-Карло в действии: случайные точки измеряют детерминированную константу.", "bridge": "Мостик: тот же приём — вероятностная оценка величины — живёт в фильтрах и в оценивании интегралов."}, {"node": "logcircuits", "title": "Логические схемы", "layer": "app", "level": 3, "kind": "treasure", "q": "Сколько гейтов NAND нужно, чтобы собрать XOR?", "hint": "XOR = NOT(AND) + NOT(AND)... постройте таблицу и соберите.", "a": "4 гейта NAND: стандартная схема (два NAND на входах, два на выходе). XOR — самая дорогая из базовых операций.", "bridge": "Мостик: полнота {NAND} — из неё собирается вся цифра; логика становится железом."}, {"node": "navigation", "title": "Навигация и маршруты", "layer": "app", "level": 2, "kind": "treasure", "q": "Навигатор считает маршрут по городу: перекрёстки, минуты на дорогах. Какой алгоритм внутри?", "hint": "Веса рёбер неотрицательны, нужна оптимальность.", "a": "Дейкстра (или A* с эвристикой «расстояние по прямой» — быстрее на практике, тот же порядок оптимальности).", "bridge": "Мостик: графы из теории превращаются в реальный маршрут — это и есть слой приложений."}, {"node": "dbindexes", "title": "Индексы в базах данных", "layer": "app", "level": 2, "kind": "treasure", "q": "Почему B-tree индекс находит строку среди 10 млн за ~20 сравнений, а без индекса — перебор?", "hint": "Сравните 10^7 и log2(10^7).", "a": "log2(10^7) ≈ 23. B-tree — сбалансированное дерево: высота логарифмична. Без индекса — линейный скан всех строк.", "bridge": "Мостик: дерево поиска — та же структура, что и в теории; индустрия просто докрутила её до дисков."}, {"node": "test-mnk", "title": "Тест: МНК и регрессия", "layer": "check", "level": 3, "kind": "chest", "q": "КОМАНДНОЕ. Даны 5 точек. Постройте прямую МНК от руки: оцените наклон по крайним точкам, проверьте баланс остатков сверху и снизу.", "hint": "Сумма остатков у МНК равна нулю — это проверка.", "a": "Приемлемо: верный знак наклона и примерный масштаб; сумма остатков примерно нулевая.", "bridge": "Мостик: командная проверка собирает векторы, матрицы и МНК в один навык."}, {"node": "test-bayes", "title": "Тест: Байес", "layer": "check", "level": 3, "kind": "chest", "q": "КОМАНДНОЕ. Два независимых теста с точностью 99%, болезнь у 1%. Оба положительны. Оцените вероятность болезни.", "hint": "Последовательно примените Байеса дважды.", "a": "≈ 98%: после первого теста шанс болезни ~50%, после второго — обновление даёт ~98,5%. Два независимых теста резко сужают неопределённость.", "bridge": "Мостик: Байес + матрица неточности = полный набор «тест говорит — что это значит»."}, {"node": "test-logic", "title": "Тест: логика", "layer": "check", "level": 3, "kind": "chest", "q": "КОМАНДНОЕ. Докажите или опровергните: (A → B) и (B → C) влекут (A → C). Найдите контрпример, если есть.", "hint": "Цепочка стрелок: попробуйте подобрать A, B, C так, чтобы разорвать её.", "a": "Утверждение верно — это транзитивность импликации. Контрпримера не существует.", "bridge": "Мостик: та же транзитивность работает в путях графов — достижимость через промежуточную вершину."}, {"node": "test-graphs", "title": "Тест: графы", "layer": "check", "level": 3, "kind": "chest", "q": "КОМАНДНОЕ. Когда у графа есть эйлеров цикл (обход всех рёбер без повторений, возврат в начало)?", "hint": "Посмотрите на чётность степеней.", "a": "Граф связный и все степени чётные. Одна нечётная степень — и цикла нет, а есть лишь эйлеров путь с двумя нечётными концами.", "bridge": "Мостик: условие на степени — прямое следствие «каждое ребро входит и выходит»."}, {"node": "test-algo", "title": "Тест: алгоритмы", "layer": "check", "level": 3, "kind": "chest", "q": "КОМАНДНОЕ. Массив почти отсортирован (не более 10 пар стоят не на месте). Какая сортировка выиграет и почему?", "hint": "Какая сортировка чувствительна к начальной упорядоченности?", "a": "Сортировка вставками: на почти упорядоченных данных она работает за O(n + число инверсий) — практически линейно. O(n log n) сортировки это преимущество не замечают.", "bridge": "Мостик: асимптотика — не всё; константы и структура данных тоже решают."}]}</script>
+<script>
+const ALL = JSON.parse(document.getElementById("tasks-embed").textContent).tasks;
+const LAYER_NAME = {fundamental:"Фундамент",tool:"Инструменты",app:"Приложения",check:"Проверка"};
+const ICON = {treasure:"&#9812;", empty:"&#9875;", trap:"&#9760;", chest:"&#128274;"};
+
+let state = null;
+
+function save(){ localStorage.setItem("pirate_state", JSON.stringify(state)); }
+function load(){
+  try{ const s = localStorage.getItem("pirate_state"); if(s) state = JSON.parse(s); }catch(e){}
+}
+function el(id){ return document.getElementById(id); }
+
+// ---------- генерация поля ----------
+function buildBoard(size, withChest){
+  const pool = t => ALL.filter(x => x.kind === t);
+  const treasures = shuffle(pool("treasure")).slice(0, size===4 ? 4 : 6);
+  const traps = shuffle(pool("trap")).slice(0, size===4 ? 3 : 5);
+  const chestTasks = withChest ? shuffle(pool("chest")).slice(0, 1) : [];
+  const used = new Set([...treasures,...traps,...chestTasks].map(t=>t.node));
+  const empties = shuffle(ALL.filter(t=>!used.has(t.node) && (t.kind==="empty" || t.level<=2)));
+  const slots = [];
+  treasures.forEach(t=>slots.push({kind:"treasure",task:t}));
+  traps.forEach(t=>slots.push({kind:"trap",task:t}));
+  chestTasks.forEach(t=>slots.push({kind:"chest",task:t}));
+  while(slots.length < size*size && empties.length){
+    slots.push({kind:"empty",task:empties.pop()});
+  }
+  while(slots.length < size*size) slots.push({kind:"empty",task:null});
+  return shuffle(slots).slice(0,size*size).map(s=>({...s, opened:false, owner:null, result:null}));
+}
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+// ---------- новая партия ----------
+el("newGame").onclick = () => {
+  const size = +el("sizeSel").value;
+  state = {
+    size, withChest: el("chestChk").checked,
+    cells: buildBoard(size, el("chestChk").checked),
+    teams: state && state.teams ? state.teams.map(t=>({name:t.name,oxygen:0,treasures:0,spendLog:[]})) : [],
+    round: 1, shoreUsed: [], finished: false
+  };
+  render();
+};
+
+el("addTeam").onclick = () => {
+  const name = el("teamName").value.trim() || ("Команда " + ((state&&state.teams?state.teams.length:0)+1));
+  if(!state) { alert("Сначала создайте партию."); return; }
+  state.teams.push({name, oxygen:0, treasures:0, spendLog:[]});
+  el("teamName").value = "";
+  render();
+};
+
+// ---------- фаза 1: суша ----------
+el("giveTask").onclick = () => {
+  const usedSet = new Set(state.shoreUsed);
+  let pool = ALL.filter(t => !usedSet.has(t.node));
+  if(!pool.length) pool = ALL; // пул кончился — начинаем заново
+  const t = pool[Math.floor(Math.random()*pool.length)];
+  state.shoreUsed.push(t.node);
+  state.currentShore = t;
+  const box = el("shoreTask");
+  box.classList.remove("hidden");
+  box.innerHTML = renderTask(t) +
+    `<div style="margin-top:8px"><b>Награда командам:</b> ${rewardButtons()}</div>`;
+  save(); renderTeams();
+};
+function rewardButtons(){
+  return state.teams.map((tm,i)=>
+    `<div class="team" style="margin:6px 0"><b>${esc(tm.name)}</b>
+      <button class="mini" onclick="award(${i},1)">+1</button>
+      <button class="mini" onclick="award(${i},2)">+2</button>
+      <button class="mini" onclick="award(${i},3)">+3</button>
+      <button class="mini" onclick="award(${i},1)" title="Бонус за мостик: назвали связь с другой темой">&#127760; мостик +1</button>
+    </div>`).join("");
+}
+window.award = (i,n) => { state.teams[i].oxygen += n; save(); render(); };
+
+// таймер
+let timerId=null, tleft=0;
+el("timerBtn").onclick = () => {
+  tleft = 180; el("timerBtn").classList.add("hidden");
+  tick(); timerId = setInterval(tick,1000);
+  function tick(){
+    const m = String(Math.floor(tleft/60)).padStart(2,"0"), s = String(tleft%60).padStart(2,"0");
+    el("timer").textContent = `${m}:${s}`;
+    if(--tleft < 0){ clearInterval(timerId); el("timer").textContent="Время!"; el("timerBtn").classList.remove("hidden"); }
+  }
+};
+
+// ---------- фаза 2: погружение ----------
+window.openCell = idx => {
+  if(state.finished) return;
+  const who = +el("whoOpen").value;
+  const team = state.teams[who];
+  const cell = state.cells[idx];
+  if(cell.opened){ alert("Клетка уже открыта."); return; }
+  if(!team || team.oxygen < 1){ alert("У команды нет кислорода."); return; }
+  team.oxygen -= 1; cell.opened = true; cell.owner = who;
+  if(cell.kind==="treasure"){ team.treasures += 1; cell.result="treasure"; closeTrap(); }
+  else if(cell.kind==="empty"){ cell.result="empty"; closeTrap(); }
+  else if(cell.kind==="trap"){ cell.result="trap-open"; showTrap(idx); }
+  else if(cell.kind==="chest"){ cell.result="chest-open"; showTrap(idx, true); }
+  save(); render();
+};
+window.resolveTrap = (idx, ok) => {
+  const cell = state.cells[idx]; const team = state.teams[cell.owner];
+  if(ok){ cell.result = cell.kind==="chest" ? "chest-opened" : "trap-passed";
+          team.treasures += 1; if(cell.kind==="chest") team.treasures += 0; }
+  else { cell.result = "trap-failed";
+         if(team.treasures > 0){ team.treasures -= 1; }
+         team.oxygen = 0; }
+  closeTrap(); save(); render();
+};
+function closeTrap(){ el("trapPanel").classList.add("hidden"); }
+
+function showTrap(idx, isChest=false){
+  const cell = state.cells[idx]; const t = cell.task;
+  const panel = el("trapPanel");
+  panel.classList.remove("hidden");
+  panel.querySelector("h2").textContent = isChest ? "Сундук: командное задание" : "Ловушка!";
+  el("trapBody").innerHTML = renderTask(t) +
+    `<div style="margin-top:10px">
+       <button class="primary" onclick="resolveTrap(${idx},true)">${isChest?"Сундук вскрыт — сокровище":"Преодолели ловушку — сокровище"}</button>
+       <button class="danger" onclick="resolveTrap(${idx},false)">Не справились</button>
+     </div>`;
+  panel.scrollIntoView({behavior:"smooth"});
+}
+
+// ---------- рендер ----------
+function renderTask(t){
+  return `<div class="task-card">
+    <span class="kind k-${t.kind}">${t.kind==="empty"?"разминка":t.kind==="trap"?"ловушка":t.kind==="treasure"?"сокровище":"сундук"} · сложность ${t.level} · ${LAYER_NAME[t.layer]}</span>
+    <h3>${esc(t.q)}</h3>
+    <details><summary>Подсказка</summary><p>${esc(t.hint)}</p></details>
+    <details><summary>Ответ и мостик</summary><p>${esc(t.a)}</p><p><i>${esc(t.bridge)}</i></p></details>
+    <div class="node-ref">Узел графа: <code>${t.node}</code> — «${esc(t.title)}»</div>
+  </div>`;
+}
+function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function render(){
+  load();
+  if(!state){ return; }
+  el("shorePanel").classList.toggle("hidden", state.finished);
+  el("divePanel").classList.toggle("hidden", state.finished);
+  el("endPanel").classList.toggle("hidden", state.finished);
+  el("report").classList.toggle("hidden", !state.finished);
+  el("phaseBanner").innerHTML = state.finished
+    ? "Партия завершена"
+    : `Ход ${state.round}. Кислорода у команд: <b>${state.teams.reduce((s,t)=>s+t.oxygen,0)}</b> · Сокровищ: <b>${state.teams.reduce((s,t)=>s+t.treasures,0)}</b>`;
+  renderBoard(); renderTeams(); renderWho(); renderReport();
+}
+function renderBoard(){
+  const b = el("board"); b.style.gridTemplateColumns = `repeat(${state.size},1fr)`;
+  b.innerHTML = state.cells.map((c,i)=>{
+    let cls = "cell", inner = ICON[c.kind];
+    if(c.opened){
+      cls += c.kind==="treasure"||c.result==="trap-passed"||c.result==="chest-opened" ? " open-treasure"
+           : c.kind==="trap"||c.kind==="chest" ? " open-"+(c.result==="trap-failed"?"trap":"chest")
+           : " open-empty";
+      if(c.result==="trap-failed") cls = "cell open-trap";
+      inner = c.result==="trap-failed" ? "&#9760;" : (c.kind==="empty" ? ICON.empty : ICON.treasure);
+      if(c.owner!=null) inner += `<span class="tag">${esc(state.teams[c.owner].name)}</span>`;
+    }
+    return `<div class="${cls}" onclick="openCell(${i})">${inner}</div>`;
+  }).join("");
+}
+function renderTeams(){
+  el("teamsList").innerHTML = state.teams.map((t,i)=>`<div class="team"><b>${esc(t.name)}</b>
+    <div class="stats">Кислород: ${t.oxygen} · Сокровища: ${t.treasures}</div>
+    <button class="mini" onclick="award(${i},1)">+1 кислород</button>
+    <button class="mini" onclick="award(${i},1)" title="Бонус-мостик: назвали связь с другой темой">&#127760; мостик +1</button>
+  </div>`).join("");
+}
+function renderWho(){
+  const sel = el("whoOpen");
+  if(sel.options.length !== state.teams.length){
+    sel.innerHTML = state.teams.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("");
+  }
+}
+el("finishBtn").onclick = () => { state.finished = true; save(); render(); };
+
+function renderReport(){
+  if(!state.finished) return;
+  const rows = state.teams.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.treasures}</td></tr>`).join("");
+  el("scoreTable").innerHTML = `<tr><th>Команда</th><th>Сокровищ</th></tr>` + rows;
+  const won = new Set(state.cells.filter(c=>c.opened && c.task &&
+      (c.kind==="treasure" || c.result==="trap-passed" || c.result==="chest-opened"))
+      .map(c=>c.task.node));
+  const lines = [];
+  state.teams.forEach(t=>{
+    const got = state.cells.filter(c=>c.owner===state.teams.indexOf(t) && c.opened && c.task &&
+      (c.kind==="treasure" || c.result==="trap-passed" || c.result==="chest-opened"))
+      .map(c=>c.task.node);
+    if(got.length) lines.push(`# ${t.name}`);
+    got.forEach(n=>{ const task = ALL.find(x=>x.node===n); lines.push(`  ${n}  (${task?task.title:n})`); });
+  });
+  el("nodesList").textContent = lines.join("\n") || "Открытых клеток с заданиями нет.";
+}
+el("copyNodes").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(el("nodesList").textContent); };
+
+load(); render();
+</script>
+</body>
+</html>
