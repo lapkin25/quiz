@@ -2,7 +2,8 @@
 
 [Задачи](tasks.html)
 
-[Пиратский квиз](pirate.html)
+[Пиратский квиз](pirate_demo.html)
+- [Для ведущего](pirate.html)
 
 [Темы](graph.html)
 
