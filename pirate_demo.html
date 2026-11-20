@@ -460,10 +460,11 @@ async function loadPredicates() {
   }
 }
 
-let PREDICATE_TASKS = loadPredicates();
+loadPredicates().then(extra => {
+  let TASKS = BASE_TASKS.concat(extra.tasks);
+  window.TASKS = TASKS;
+});
 
-let TASKS = BASE_TASKS.concat(PREDICATE_TASKS);
-window.TASKS = TASKS;
 
 const RARE_ID = "t3"; // задача про дни рождения — редкое сокровище (гонка)
 const SIZES = {
