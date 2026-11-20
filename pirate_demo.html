@@ -472,6 +472,11 @@ const SIZES = {
   5:{treasure:6, trap:5, chest:1, warmup:13}
 };
 
+
+function resetModalDetails(){
+  document.querySelectorAll("#taskModal details").forEach(d => d.removeAttribute("open"));
+}
+
 // ============ СОСТОЯНИЕ ============
 let S = null;
 const $ = id => document.getElementById(id);
@@ -616,6 +621,7 @@ function dryTask(){
   openTaskModal(t, "Задание на суше", true);
 }
 function openTaskModal(t, title, withTimer){
+  resetModalDetails();  
   $("tmTitle").textContent = (title||"") + " · " + (t.title || ("Сложность " + t.level));
   $("tmQ").textContent = t.q;
   $("tmHint").textContent = t.hint;
@@ -667,6 +673,7 @@ function openCell(i){
   renderAll();
 }
 function openTrapModal(t, c){
+  resetModalDetails();  
   $("tmTitle").textContent = "⚠️ Ловушка! Команда «" + c.team + "»";
   $("tmQ").textContent = t.q;
   $("tmHint").textContent = t.hint;
@@ -684,6 +691,7 @@ function openTrapModal(t, c){
   show("taskModal",true);
 }
 function openChestModal(t, c){
+  resetModalDetails();  
   $("tmTitle").textContent = "🧰 Сундук! Командное задание";
   $("tmQ").textContent = t.q;
   $("tmHint").textContent = t.hint;
@@ -697,6 +705,7 @@ function openChestModal(t, c){
   show("taskModal",true);
 }
 function openRaceModal(t){
+  resetModalDetails(); 
   $("tmTitle").textContent = "✨ РЕДКОЕ СОКРОВИЩЕ · Отвечают все команды наперегонки!";
   $("tmQ").textContent = t.q;
   $("tmHint").textContent = t.hint;
