@@ -103,6 +103,7 @@
         <button id="btnPhase2" onclick="toPhase2()">🌊 Фаза 2</button>
         <button id="btnPhase1" onclick="toPhase1()" disabled>☁️ Фаза 1</button>
         <button onclick="finishGame()">🏁 Итоги</button>
+        <button onclick="newGame()">🎲 Новая партия</button>
       </div>
     </div>
     <div class="panel"><div id="teams"></div></div>
@@ -259,11 +260,14 @@ let S = null;
 const $ = id => document.getElementById(id);
 const show = (id,on) => $(id).classList.toggle("visible",on);
 
-function save(){ try{ localStorage.setItem("pirate_demo", JSON.stringify(S)); }catch(e){} }
+const STORE_KEY = "pirate_demo_v2"; // новый ключ — старые сейвы больше не мешают
+
+function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(S)); }catch(e){} }
 function loadState(){
-  try{ const s = localStorage.getItem("pirate_demo"); return s? JSON.parse(s):null; }catch(e){ return null; }
+  try{ const s = localStorage.getItem(STORE_KEY); return s? JSON.parse(s) : null; }
+  catch(e){ return null; }
 }
-function clearState(){ localStorage.removeItem("pirate_demo"); }
+function clearState(){ localStorage.removeItem(STORE_KEY); }
 
 // ============ НАСТРОЙКА ============
 const setupTeams = [];
@@ -289,6 +293,7 @@ function renderSizeInfo(){
   $("sizeInfo").textContent = S && S.size ? ("Выбрано поле " + S.size + "×" + S.size) : "— не выбрано —";
 }
 function startGame(){
+try{
   if(!S || !S.size){ $("startHint").textContent = "Сначала выберите размер поля!"; return; }
   if(setupTeams.length < 1){ $("startHint").textContent = "Добавьте хотя бы одну команду!"; return; }
   const useChest = $("chestChk").checked;
@@ -300,7 +305,7 @@ function startGame(){
   const picked = [];
   for(const type of ["chest","treasure","trap","warmup"]){
     shuffle(buckets[type]);
-    picked.push(...buckets[type].slice(0, cnt[type]));
+    picked.push(...buckets[type].slice(0, cnt[type]).map(i => TASKS[i].id));
   }
   shuffle(picked);
   S = {
@@ -313,6 +318,10 @@ function startGame(){
   save();
   show("setup",false); show("game",true);
   renderAll();
+}catch(e){
+    console.error(e);
+    alert("Ошибка старта: " + e.message + " (подробности в консоли F12)");
+}
 }
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
 function task(id){ return TASKS.find(t=>t.id===id); }
@@ -355,7 +364,11 @@ function bridge(i){
 }
 function renderBoard(){
   const n = S.size, box = $("board");
-  box.style.gridTemplateColumns = `repeat(${n},1fr)`;
+  if(!Array.isArray(S.board) || S.board.length !== n*n){
+    box.innerHTML = '<p class="muted">⚠️ Раскладка не сошлась — нажмите «🎲 Новая партия».</p>';
+    console.error("board:", S.board);
+    return;
+  }  box.style.gridTemplateColumns = `repeat(${n},1fr)`;
   box.innerHTML = "";
   const icons = {treasure:"❓", trap:"❓", chest:"❓", warmup:"❓"};
   S.board.forEach((c,i)=>{
@@ -543,12 +556,16 @@ function newGame(){
 // ============ ВОССТАНОВЛЕНИЕ ПАРТИИ ============
 (function boot(){
   const saved = loadState();
-  if(saved && saved.started && !saved.finished &&
-     confirm("Обнаружена незавершённая партия. Продолжить?")){
+  const ok = saved && saved.started && !saved.finished
+    && SIZES[saved.size]
+    && Array.isArray(saved.board) && saved.board.length === saved.size * saved.size
+    && Array.isArray(saved.teams) && saved.teams.length > 0
+    && saved.board.every(c => c && c.id && task(c.id));
+  if(ok && confirm("Обнаружена незавершённая партия. Продолжить?")){
     S = saved;
     show("setup",false); show("game",true);
     renderAll();
-  } else if(saved && saved.started){ clearState(); }
+  } else if(saved){ clearState(); }
 })();
 </script>
 </body>
