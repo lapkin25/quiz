@@ -3,803 +3,553 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Пиратский квиз — игровое поле</title>
+<title>☠️ Пиратский квиз: сокровища Окезнании</title>
 <style>
-  :root{
-    --sea1:#0a2a4a; --sea2:#0d3a66; --sand:#e8c98a; --gold:#f5c542;
-    --card:#123a5c; --line:#1e5c8a; --white:#fff;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
-    background:linear-gradient(180deg,var(--sea1),var(--sea2));color:var(--white);
-    min-height:100vh}
-  h1{font-size:2rem;margin:.3rem 0}
-  h2{font-size:1.5rem}
-  .btn{background:var(--gold);color:#2b1a00;border:none;border-radius:10px;
-    padding:.7rem 1.3rem;font-size:1.15rem;font-weight:700;cursor:pointer;box-shadow:0 3px 0 #a37e14}
-  .btn:active{transform:translateY(2px);box-shadow:none}
-  .btn.blue{background:#4fc3f7;color:#003a5c;box-shadow:0 3px 0 #1b7ea8}
-  .btn.red{background:#ff8a80;color:#5c0f09;box-shadow:0 3px 0 #a83c33}
-  .btn.ghost{background:transparent;color:var(--white);box-shadow:inset 0 0 0 2px rgba(255,255,255,.5)}
-  .btn.small{padding:.4rem .8rem;font-size:1rem;box-shadow:0 2px 0 #a37e14}
-  .btn.blue.small{box-shadow:0 2px 0 #1b7ea8}
-  .btn.red.small{box-shadow:0 2px 0 #a83c33}
-  .hidden{display:none!important}
-
-  /* ---------- настройка ---------- */
-  #setup{max-width:900px;margin:0 auto;padding:1.5rem;text-align:center}
-  #setup .panel{background:rgba(255,255,255,.08);border-radius:14px;padding:1.2rem;margin:1rem 0}
-  .fieldbtn{font-size:1.4rem;padding:1rem 1.6rem;margin:0 .4rem}
-  .fieldbtn.sel{outline:4px solid var(--gold)}
-  .team-row{display:flex;gap:.6rem;justify-content:center;margin:.4rem 0}
-  .team-row input{font-size:1.2rem;padding:.5rem .7rem;border-radius:8px;border:none;width:280px}
-
-  /* ---------- игровой экран ---------- */
-  #game{display:flex;flex-direction:column;height:100vh}
-  header{display:flex;align-items:center;gap:1.2rem;padding:.6rem 1.2rem;
-    background:rgba(0,0,0,.25);flex-wrap:wrap}
-  #phase{font-size:1.5rem;font-weight:800;color:var(--gold)}
-  #timer{font-size:2.2rem;font-weight:800;letter-spacing:2px;min-width:120px;text-align:center;
-    background:rgba(0,0,0,.35);border-radius:10px;padding:.1rem .8rem}
-  #curteam{font-size:1.4rem;font-weight:700;color:#aee6ff}
-  #fieldwrap{flex:1;display:flex;gap:1.2rem;padding:1rem;overflow:auto}
-  #field{display:grid;gap:.6rem;align-content:center;justify-content:center;flex:3}
-  .cell{aspect-ratio:1;min-width:88px;border-radius:12px;border:3px solid rgba(255,255,255,.25);
-    background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;
-    font-size:2.4rem;cursor:pointer;position:relative;transition:transform .1s}
-  .cell:hover{transform:scale(1.04);border-color:var(--gold)}
-  .cell .tname{position:absolute;bottom:4px;right:6px;font-size:.75rem;color:var(--sand);
-    max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .cell.open{cursor:default;background:var(--card)}
-  .cell.open:hover{transform:none}
-  .cell.now{outline:4px solid var(--gold)}
-  #side{flex:1;min-width:260px;display:flex;flex-direction:column;gap:.7rem;align-items:stretch}
-  .teamcard{background:rgba(255,255,255,.1);border-radius:14px;padding:.8rem 1rem;cursor:pointer;
-    border:3px solid transparent}
-  .teamcard.sel{border-color:var(--gold);background:rgba(245,197,66,.15)}
-  .teamcard .nm{font-size:1.4rem;font-weight:800}
-  .teamcard .nums{display:flex;gap:1.4rem;margin-top:.3rem}
-  .teamcard .nums b{font-size:1.9rem;color:var(--gold)}
-  .teamcard .nums span{font-size:1rem;opacity:.9}
-  .teamcard .aw{display:flex;gap:.4rem;margin-top:.5rem}
-  footer{display:flex;gap:1rem;justify-content:center;padding:.5rem}
-  #toast{position:fixed;left:50%;bottom:8%;transform:translateX(-50%);
-    background:#ff8a80;color:#5c0f09;font-weight:800;font-size:1.3rem;padding:.7rem 1.4rem;
-    border-radius:12px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:60}
-
-  /* ---------- модальные окна ---------- */
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;
-    align-items:center;justify-content:center;z-index:50;padding:1rem}
-  .modal{background:linear-gradient(180deg,#134a72,#0d3a66);border:4px solid var(--gold);
-    border-radius:18px;max-width:900px;width:100%;max-height:92vh;overflow:auto;padding:1.6rem 2rem}
-  .modal .tag{display:inline-block;padding:.2rem .9rem;border-radius:999px;font-weight:800;
-    font-size:1.05rem;margin-bottom:.7rem}
-  .tag.warmup{background:#4fc3f7;color:#003a5c}
-  .tag.trap{background:#ff8a80;color:#5c0f09}
-  .tag.treasure{background:var(--gold);color:#2b1a00}
-  .tag.chest{background:#b388ff;color:#2a1266}
-  .modal .q{font-size:1.7rem;line-height:1.4;margin:.4rem 0 1rem}
-  .modal details{margin:.6rem 0}
-  .modal summary{font-size:1.2rem;cursor:pointer;color:#aee6ff}
-  .modal .a{font-size:1.25rem;line-height:1.4}
-  .modal .bridge{font-style:italic;color:var(--sand);margin-top:.8rem;font-size:1.15rem}
-  .modal .acts{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1.2rem}
-  .rare-note{background:rgba(245,197,66,.2);border-radius:10px;padding:.6rem 1rem;margin:.6rem 0}
-  .win-btns{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem}
-
-  /* ---------- финал ---------- */
-  #final{max-width:900px;margin:0 auto;padding:2rem}
-  #final table{width:100%;border-collapse:collapse;font-size:1.4rem;margin:1rem 0}
-  #final td,#final th{padding:.5rem .8rem;border-bottom:1px solid var(--line);text-align:left}
-  #final .first{color:var(--gold);font-weight:800}
-  #blank{background:rgba(255,255,255,.08);border-radius:12px;padding:1rem;margin:1rem 0}
-  #blank li{margin:.3rem 0;font-size:1.15rem}
-
-  @media (max-width:900px){
-    #fieldwrap{flex-direction:column}
-    #field{flex:none}
-    .cell{min-width:64px;font-size:1.8rem}
-    header{gap:.6rem}
-    #phase{font-size:1.1rem}#timer{font-size:1.6rem}#curteam{font-size:1.05rem}
-  }
+  :root { --gold:#ffd166; --sea:#072a3f; --panel:#0e3a54; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;
+         background:linear-gradient(180deg,#041e2e,var(--sea)); color:#eef6fb; min-height:100vh; }
+  h1 { margin:.3rem 0; font-size:1.6rem; }
+  .wrap { max-width:1100px; margin:0 auto; padding:1rem; }
+  .screen { display:none; }
+  .screen.visible { display:block; }
+  .panel { background:var(--panel); border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem;
+           box-shadow:0 4px 14px rgba(0,0,0,.35); }
+  button { background:#1d6fa5; color:#fff; border:none; border-radius:8px;
+           padding:.6rem 1.1rem; font-size:1.05rem; cursor:pointer; margin:.25rem; }
+  button:hover { background:#2a86c4; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.gold { background:#b8860b; }
+  button.gold:hover { background:#d9a520; }
+  input[type=text] { padding:.5rem .7rem; border-radius:6px; border:1px solid #3a7ca5;
+                     background:#0a2e44; color:#eef6fb; font-size:1rem; min-width:220px; }
+  label { display:block; margin:.5rem 0; }
+  /* --- поле --- */
+  #board { display:grid; gap:.6rem; margin:.8rem 0; }
+  .cell { position:relative; aspect-ratio:1; border-radius:12px; cursor:pointer;
+          background:#0a2e44; border:2px solid #3a7ca5; display:flex; flex-direction:column;
+          align-items:center; justify-content:center; font-size:2.6rem; user-select:none;
+          transition:transform .15s; }
+  .cell:hover { transform:scale(1.03); }
+  .cell.opened { cursor:default; background:#123f5c; }
+  .cell.active-turn { border-color:var(--gold); box-shadow:0 0 14px rgba(255,209,102,.6); }
+  .cell .tag { font-size:.75rem; margin-top:.3rem; color:#cfe6f5; }
+  .cell .who { position:absolute; bottom:4px; font-size:.7rem; background:rgba(0,0,0,.4);
+               padding:1px 6px; border-radius:6px; }
+  /* --- команды --- */
+  #teams { display:flex; gap:.8rem; flex-wrap:wrap; }
+  .team { background:#0a2e44; border:2px solid #3a7ca5; border-radius:12px; padding:.6rem .9rem;
+          min-width:200px; cursor:pointer; }
+  .team.active { border-color:var(--gold); box-shadow:0 0 12px rgba(255,209,102,.5); }
+  .team h3 { margin:.1rem 0 .4rem; font-size:1.15rem; }
+  .team .cnt { font-size:1.9rem; font-weight:700; line-height:1.1; }
+  .team .row { display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.4rem; }
+  .team .row button { font-size:.8rem; padding:.25rem .5rem; }
+  /* --- модалки --- */
+  .modal { position:fixed; inset:0; background:rgba(2,12,20,.86); display:none;
+           align-items:center; justify-content:center; z-index:50; padding:1rem; }
+  .modal.visible { display:flex; }
+  .modal .card { background:var(--panel); border-radius:14px; padding:1.4rem;
+                 max-width:760px; width:100%; max-height:92vh; overflow:auto; }
+  .modal h2 { margin-top:0; }
+  .modal .q { font-size:1.35rem; line-height:1.4; }
+  .modal details { margin:.7rem 0; }
+  .modal summary { cursor:pointer; color:var(--gold); font-size:1.05rem; }
+  .timer { font-size:2.2rem; font-weight:700; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .timer.out { color:#ff6b6b; }
+  table { border-collapse:collapse; width:100%; margin:.6rem 0; }
+  th,td { border:1px solid #3a7ca5; padding:.4rem .6rem; text-align:left; }
+  .muted { color:#9fc3da; font-size:.9rem; }
+  .center { text-align:center; }
+  #phasebar { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
+  #fasehead { font-size:1.25rem; font-weight:700; color:var(--gold); }
 </style>
 </head>
 <body>
+<div class="wrap">
 
-<!-- ============ НАСТРОЙКА ============ -->
-<div id="setup">
-  <h1>☠️ Пиратский квиз: сокровища Окезнании</h1>
-  <p style="font-size:1.2rem">Экран для зала. Настройте партию — и в путь!</p>
-
-  <div class="panel">
-    <h2>Размер поля</h2>
-    <button class="btn fieldbtn sel" id="f44" onclick="setField(4)">4 × 4 · ~15 минут</button>
-    <button class="btn fieldbtn" id="f55" onclick="setField(5)">5 × 5 · ~25 минут</button>
+  <!-- ЭКРАН НАСТРОЙКИ -->
+  <div class="screen visible" id="setup">
+    <h1>☠️ Пиратский квиз: сокровища Окезнании</h1>
+    <p class="muted">Экран для зала. Настройте партию — и в путь!</p>
+    <div class="panel">
+      <h2>Размер поля</h2>
+      <button data-size="4">4 × 4 · ~15 минут</button>
+      <button data-size="5">5 × 5 · ~25 минут</button>
+      <div class="muted" id="sizeInfo">— не выбрано —</div>
+    </div>
+    <div class="panel">
+      <h2>Команды</h2>
+      <div id="setupTeams"></div>
+      <button onclick="addTeam()">+ команда</button>
+    </div>
+    <div class="panel">
+      <label><input type="checkbox" id="chestChk"> Сундуки (командные задания) — включить для длинной игры</label>
+      <button class="gold" onclick="startGame()">⚓ Начать партию</button>
+      <div class="muted" id="startHint"></div>
+    </div>
   </div>
 
-  <div class="panel">
-    <h2>Команды</h2>
-    <div id="teams-input"></div>
-    <button class="btn blue small" onclick="addTeamInput()">+ команда</button>
+  <!-- ЭКРАН ИГРЫ -->
+  <div class="screen" id="game">
+    <div class="panel">
+      <div class="center">
+        <span id="fasehead"></span>
+        <span class="timer" id="timerBox" style="margin-left:1rem">—:—</span>
+        <span class="muted" style="margin-left:1rem">Ход: <b id="turnNo">—</b></span>
+      </div>
+      <div class="center" style="margin-top:.5rem">
+        <button id="btnTask" onclick="dryTask()">📜 Задание на суше</button>
+        <button id="btnPhase2" onclick="toPhase2()">🌊 Фаза 2</button>
+        <button id="btnPhase1" onclick="toPhase1()" disabled>☁️ Фаза 1</button>
+        <button onclick="finishGame()">🏁 Итоги</button>
+      </div>
+    </div>
+    <div class="panel"><div id="teams"></div></div>
+    <div class="panel"><div id="board"></div></div>
   </div>
 
-  <div class="panel">
-    <h2>Сундуки (командные задания)</h2>
-    <label style="font-size:1.2rem">
-      <input type="checkbox" id="useChest" checked> включить сундуки — для длинной игры
-    </label>
-  </div>
-
-  <button class="btn" style="font-size:1.5rem;padding:1rem 2.4rem" onclick="startGame()">
-    ⚓ Начать партию
-  </button>
 </div>
 
-<!-- ============ ИГРА ============ -->
-<div id="game" class="hidden">
-  <header>
-    <span id="phase">Фаза 1 · На суше</span>
-    <span id="timer">—:—</span>
-    <span id="curteam">Ход: —</span>
-    <span style="flex:1"></span>
-    <button class="btn small" id="dryBtn" onclick="showDryTask()">📜 Задание на суше</button>
-    <button class="btn red small" onclick="finishGame()">🏁 Итоги</button>
-  </header>
-
-  <div id="fieldwrap">
-    <div id="field"></div>
-    <div id="side"></div>
+<!-- МОДАЛКА ЗАДАЧИ -->
+<div class="modal" id="taskModal"><div class="card">
+  <h2 id="tmTitle"></h2>
+  <div class="q" id="tmQ"></div>
+  <details><summary>💡 Подсказка</summary><p id="tmHint"></p></details>
+  <details><summary>✅ Ответ</summary><p id="tmAns"></p></details>
+  <div class="center">
+    <span class="timer" id="tmTimer">3:00</span>
+    <div id="tmButtons"></div>
   </div>
+</div></div>
 
-  <footer>
-    <button class="btn blue small" onclick="setPhase(1)">☁️ Фаза 1</button>
-    <button class="btn blue small" onclick="setPhase(2)">🌊 Фаза 2</button>
-    <button class="btn ghost small" onclick="newGame()">Начать заново</button>
-  </footer>
-</div>
-
-<div id="toast"></div>
-
-<!-- ============ ФИНАЛ ============ -->
-<div id="final" class="hidden">
-  <h1>🏁 Итоги плавания</h1>
-  <table id="score"></table>
-  <h2>🗺️ Бланк добычи: узлы карты знаний</h2>
-  <div id="blank"></div>
-  <button class="btn blue" onclick="copyBlank()">Скопировать список узлов</button>
-  <button class="btn ghost" onclick="newGame()">Новая партия</button>
-</div>
-
-<!-- ============ МОДАЛКИ ============ -->
-<div id="modal" class="overlay hidden"><div class="modal" id="modalBox"></div></div>
+<!-- МОДАЛКА ИТОГОВ -->
+<div class="modal" id="endModal"><div class="card">
+  <h2>🏁 Итоги плавания</h2>
+  <div id="endScore"></div>
+  <h3>🗺️ Бланк добычи: узлы карты знаний</h3>
+  <div id="endNodes" class="muted"></div>
+  <div class="center">
+    <button class="gold" onclick="copyNodes()">📋 Скопировать список узлов</button>
+    <button onclick="newGame()">🔄 Новая партия</button>
+  </div>
+</div></div>
 
 <script>
-/* ===== данные задач (вшиты в файл — работает с диска) ===== */
-const TASKS = {
-  "tasks": [
-    {
-      "node": "vectors",
-      "type": "warmup",
-      "level": 1,
-      "q": "Корабль идёт 4 узла на север и 3 узла на восток. Какова его полная скорость?",
-      "hint": "Теорема Пифагора: катеты 4 и 3.",
-      "a": "5 узлов. Модуль вектора (3,4) равен √(3²+4²)=5.",
-      "bridge": "Мостик: модуль вектора = длина диагонали; эта же «длина» меряет ошибку в МНК."
-    },
-    {
-      "node": "logic",
-      "type": "warmup",
-      "level": 1,
-      "q": "Если карта ведёт к сокровищу — море спокойно. Море штормит. Ведёт ли карта к сокровищу?",
-      "hint": "Modus tollens: отрицай следствие.",
-      "a": "Ведёт? Нет — из «штормит» следует «карта НЕ ведёт к сокровищу». Это modus tollens.",
-      "bridge": "Мостик: таблицы истинности → булевы функции → логические схемы процессора."
-    },
-    {
-      "node": "combinatorics",
-      "type": "warmup",
-      "level": 1,
-      "q": "Сколькими способами выбрать двух орлов из четырёх монет? Порядок не важен.",
-      "hint": "Это сочетания: C(4,2).",
-      "a": "6 способов: 4·3/2 = 6.",
-      "bridge": "Мостик: вероятность = «сколько благоприятных / сколько всего» — без сочетаний её не посчитать."
-    },
-    {
-      "node": "probability",
-      "type": "warmup",
-      "level": 1,
-      "q": "Монета упала орлом 5 раз подряд. Какова вероятность орла в шестой раз?",
-      "hint": "Монета не помнит прошлого.",
-      "a": "1/2. Монета не помнит: события независимы, а 5 орлов подряд — уже случившееся.",
-      "bridge": "Мостик: «ошибка игрока» — родня путаницы P(A|B) и P(B|A) в формуле Байеса."
-    },
-    {
-      "node": "big_o",
-      "type": "warmup",
-      "level": 1,
-      "q": "Бинарный поиск на миллионе карточек — сколько сравнений в худшем случае?",
-      "hint": "Каждый шаг режет список пополам: log₂(10⁶) ≈ ?",
-      "a": "Около 20 сравнений (2²⁰ ≈ 1 000 000).",
-      "bridge": "Мостик: без O-нотации нельзя честно сравнить сортировку и поиск на больших данных."
-    },
-    {
-      "node": "recursion",
-      "type": "warmup",
-      "level": 1,
-      "q": "Числа Фибоначчи: fib(1)=fib(2)=1, fib(n)=fib(n−1)+fib(n−2). Чему равно fib(5)?",
-      "hint": "Разворачивай цепочку: 1, 1, 2, 3, ...",
-      "a": "fib(5)=5.",
-      "bridge": "Мостик: наивная рекурсия пересчитывает одно и то же много раз — так рождается ДП."
-    },
-    {
-      "node": "linear_systems",
-      "type": "warmup",
-      "level": 1,
-      "q": "Два курса пересекаются: x+y=10 и x−y=2. Где встречаются корабли?",
-      "hint": "Сложи оба уравнения.",
-      "a": "x=6, y=4. Сложение уравнений убрало y.",
-      "bridge": "Мостик: это метод Гаусса в миниатюре; МНК решает его переопределённую версию."
-    },
-    {
-      "node": "binary_search",
-      "type": "warmup",
-      "level": 1,
-      "q": "В отсортированном списке из 100 карточек ищем одну. Сколько шагов гарантированно?",
-      "hint": "2⁷ = 128 > 100.",
-      "a": "7 шагов: каждый сравнение делит остаток пополам.",
-      "bridge": "Мостик: «дели и властвуй» — та же идея, что в сортировке слиянием и в дереве поиска."
-    },
-    {
-      "node": "trees",
-      "type": "warmup",
-      "level": 1,
-      "q": "В двоичное дерево поиска с корнем 4 вставляют 5. Куда попадёт узел?",
-      "hint": "Меньше — влево, больше — вправо.",
-      "a": "В правое поддерево корня.",
-      "bridge": "Мостик: сбалансированное дерево даёт те же O(log n), что бинарный поиск по массиву."
-    },
-    {
-      "node": "mnk",
-      "type": "warmup",
-      "level": 2,
-      "q": "Точки (0,1) и (1,3). Прямая y=kx. Какое k лучше по МНК?",
-      "hint": "Минимизируй сумму (y − kx)² по двум точкам.",
-      "a": "k=2: сумма (1−0k)²+(3−k)² минимальна при k=2.",
-      "bridge": "Мостик: производная по k даёт нормальное уравнение — так работает вся регрессия."
-    },
-    {
-      "node": "dijkstra",
-      "type": "warmup",
-      "level": 2,
-      "q": "До клада два пути: 3+3=6 через два шага и прямой длиной 7. Что выберет Дейкстра?",
-      "hint": "Сравни суммы весов рёбер.",
-      "a": "Путь длиной 6: Дейкстра жадно выбирает минимальную накопленную дистанцию.",
-      "bridge": "Мостик: BFS — тот же алгоритм с весами 1; Дейкстра — его обобщение."
-    },
-    {
-      "node": "dp",
-      "type": "warmup",
-      "level": 2,
-      "q": "Лестница из 10 ступеней, шаг 1 или 2. Сколько способов подняться?",
-      "hint": "f(n)=f(n−1)+f(n−2).",
-      "a": "89 способов: это число Фибоначчи f(10).",
-      "bridge": "Мостик: перекрытие подзадач — та же болезнь наивной рекурсии, которую лечит ДП."
-    },
-    {
-      "node": "sorting",
-      "type": "warmup",
-      "level": 2,
-      "q": "Сортировка слиянием на 8 элементах: сколько уровней слияния и сколько сравнений примерно?",
-      "hint": "Уровней = log₂8, на каждом не больше n сравнений.",
-      "a": "3 уровня, около 24 сравнений: n·log₂n.",
-      "bridge": "Мостик: против пузырька O(n²) — на миллионе элементов разница в ~50 000 раз."
-    },
-    {
-      "node": "monte_carlo",
-      "type": "warmup",
-      "level": 2,
-      "q": "Бросаем точки в квадрат, доля попавших в четверть круга ≈ π/4. Сколько попаданий ждать при 400 точках?",
-      "hint": "Умножь долю π/4 на число точек.",
-      "a": "Около 314 попаданий.",
-      "bridge": "Мостик: тот же приём оценивает интегралы, которые аналитически не взять."
-    },
-    {
-      "node": "sets",
-      "type": "trap",
-      "level": 3,
-      "q": "Правда ли, что образ пересечения множеств равен пересечению их образов?",
-      "hint": "Проверь на примере: f(0)=f(1)=5, A={0}, B={1}.",
-      "a": "НЕТ. Образы разных элементов могут совпасть, а пересечение оригиналов — пусто. Верно только включение f(A∩B) ⊆ f(A)∩f(B).",
-      "bridge": "Мостик: инъективность — именно то условие, при котором включение становится равенством."
-    },
-    {
-      "node": "boolean_functions",
-      "type": "trap",
-      "level": 3,
-      "q": "Правда ли, что система {сложение по модулю 2, конъюнкция} полна?",
-      "hint": "Вспомни определение полноты и проверь отрицание.",
-      "a": "ДА, полна: x∧¬y и XOR позволяют собрать отрицание, а дальше — любую функцию. Многие ошибочно считают систему неполной.",
-      "bridge": "Мостик: полнота — фундамент логических схем: из двух вентилей собирается процессор."
-    },
-    {
-      "node": "graphs",
-      "type": "trap",
-      "level": 3,
-      "q": "В зале 4 двери-комнаты, из каждой комнаты по 3 двери. Можно ли обойти ВСЕ двери ровно по одному разу?",
-      "hint": "Считай степени вершин: сколько дверей выходит из каждой комнаты.",
-      "a": "Нет. Эйлеров обход существует только при 0 или 2 нечётных вершинах, а тут все 4 вершины нечётные (степень 3).",
-      "bridge": "Мостик: задача Кёнигсбергских мостов; та же структура — в маршрутизации и навигации."
-    },
-    {
-      "node": "bayes",
-      "type": "trap",
-      "level": 3,
-      "q": "Тест на болезнь точен на 99%, болезнь есть у 1% людей. Тест положителен — какова вероятность болезни?",
-      "hint": "На 10 000 человек посчитай: сколько больных и сколько ложных тревог.",
-      "a": "Около 50%! Из 100 положительных примерно 99 больных и столько же ложных тревог (по ~1 на сотню здоровых × 9900 здоровых ≈ 99).",
-      "bridge": "Мостик: та же ловушка, что и в матрице неточности: точность теста ≠ ценность теста."
-    },
-    {
-      "node": "confusion",
-      "type": "trap",
-      "level": 3,
-      "q": "Модель говорит «здоров» всем подряд. Какова её точность на выборке с 1% больных?",
-      "hint": "Посчитай долю правильных ответов.",
-      "a": "99% — и при этом модель бесполезна: она не находит ни одного больного.",
-      "bridge": "Мостик: ловушка точности продолжается в Байесе; лечится метриками полноты и точности по классам."
-    },
-    {
-      "node": "regression",
-      "type": "treasure",
-      "level": 2,
-      "q": "При 20° продали 100 мороженых, при 30° — 200. Прогноз продаж при 25°?",
-      "hint": "Найди прямую по двум точкам.",
-      "a": "150: линейная интерполяция k=10, b=−100, y(25)=150.",
-      "bridge": "Мостик: это МНК на реальных данных; но осторожно с экстраполяцией за границы данных."
-    },
-    {
-      "node": "naive_bayes",
-      "type": "treasure",
-      "level": 2,
-      "q": "Слово «клад» встречается в 50% спама и в 5% обычных писем. Можно ли уже решить, спам ли письмо?",
-      "hint": "Формула Байеса требует ещё одного слагаемого.",
-      "a": "Нельзя: нужен априор P(спам). P(спам|клад) ∝ P(клад|спам)·P(спам).",
-      "bridge": "Мостик: «наивность» — предположение независимости слов; так устроены фильтры спама."
-    },
-    {
-      "node": "pi_estimation",
-      "type": "treasure",
-      "level": 2,
-      "q": "Из 1000 случайных точек в квадрате 785 попали в четверть круга. Оценка π?",
-      "hint": "Доля × 4.",
-      "a": "π ≈ 4·785/1000 = 3.14.",
-      "bridge": "Мостик: закон больших чисел — больше точек, точнее оценка; основа Монте-Карло."
-    },
-    {
-      "node": "logic_circuits",
-      "type": "treasure",
-      "level": 2,
-      "q": "Собери вентиль «свет горит, когда ОБА ключа включены». Какой это вентиль?",
-      "hint": "Два входа, выход 1 только при 1·1.",
-      "a": "Конъюнкция (AND): выход 1 только при двух единицах.",
-      "bridge": "Мостик: из конъюнкции и XOR собирается любая схема — полнота системы в действии."
-    },
-    {
-      "node": "navigation",
-      "type": "treasure",
-      "level": 2,
-      "q": "Город — это граф: перекрёстки-вершины, дороги-рёбра. Что искать, чтобы объехать пробки?",
-      "hint": "Кратчайший путь, но что значит «короткий»?",
-      "a": "Кратчайший путь с весами = время проезда. Минимизируем сумму весов, а не число дорог.",
-      "bridge": "Мостик: карты в телефоне — это Дейкстра с эвристикой (A*), те же алгоритмы из раздела графов."
-    },
-    {
-      "node": "db_indexes",
-      "type": "treasure",
-      "level": 2,
-      "q": "Таблица на 1 000 000 строк. Сколько чтений при поиске без индекса и с B-деревом?",
-      "hint": "Полный перебор против дерева высоты log₂n.",
-      "a": "Примерно 1 000 000 против ~20 чтений.",
-      "bridge": "Мостик: индекс БД — то же дерево поиска из раздела алгоритмов, только на диске."
-    },
-    {
-      "node": "hashtables",
-      "type": "treasure",
-      "level": 3,
-      "q": "23 человека в комнате — вероятность совпадения дней рождения уже больше 50%. Что это говорит о хеш-таблицах?",
-      "hint": "Пары: n(n−1)/2. При 23 людях их 253.",
-      "a": "Коллизии неизбежны уже при малом числе ключей: хеш-таблица обязана уметь их разрешать (цепочки, открытая адресация).",
-      "bridge": "Мостик: симуляция birthday.html показывает это живьём; коллизии — родная стихия хешей."
-    },
-    {
-      "node": "test_mnk",
-      "type": "chest",
-      "level": 3,
-      "q": "Запишите формулу средней квадратичной ошибки для точек (xᵢ, yᵢ) и прямой y=kx+b.",
-      "hint": "Усредни квадраты отклонений.",
-      "a": "MSE = (1/n)·Σ(yᵢ − (k·xᵢ+b))². Минимизация по k и b даёт нормальные уравнения.",
-      "bridge": "Мостик: тест закрывает узлы «МНК» и «Регрессия»."
-    },
-    {
-      "node": "test_bayes",
-      "type": "chest",
-      "level": 3,
-      "q": "Запишите формулу Байеса и объясните каждое слагаемое.",
-      "hint": "Три компонента: правдоподобие, априор, нормировка.",
-      "a": "P(A|B) = P(B|A)·P(A) / P(B). Числитель — «насколько это ожидаемо», знаменатель — нормировка по всем вариантам B.",
-      "bridge": "Мостик: тест закрывает узлы «Формула Байеса» и «Наивный Байес»."
-    },
-    {
-      "node": "test_logic",
-      "type": "chest",
-      "level": 3,
-      "q": "Сколько строк в таблице истинности от 3 переменных? Проверьте полноту {¬, ∧, ∨}.",
-      "hint": "2ⁿ строк; полнота — через дизъюнктивную нормальную форму.",
-      "a": "8 строк (2³). Система {¬, ∧, ∨} полна: любая функция выражается в ДНФ.",
-      "bridge": "Мостик: тест закрывает узлы «Логика» и «Булевы функции»."
-    },
-    {
-      "node": "test_graphs",
-      "type": "chest",
-      "level": 3,
-      "q": "Дайте определение степени вершины и свяжите её с эйлеровым обходом.",
-      "hint": "Считай выходящие рёбра; помни условие Эйлера.",
-      "a": "Степень — число инцидентных рёбер. Обход всех рёбер существует ⇔ нечётных вершин 0 или 2.",
-      "bridge": "Мостик: тест закрывает узлы «Графы», «BFS/DFS» и «Дейкстра»."
-    },
-    {
-      "node": "test_algorithms",
-      "type": "chest",
-      "level": 3,
-      "q": "На отсортированном массиве из n элементов: что быстрее, линейный или бинарный поиск, и на сколько?",
-      "hint": "O(n) против O(log n) — сравните на n=10⁶.",
-      "a": "Бинарный: O(log n) против O(n). При n=10⁶ это ~20 сравнений против миллиона — разница в 50 000 раз.",
-      "bridge": "Мостик: тест закрывает узлы «Сортировки», «Бинарный поиск» и «Деревья»."
-    },
-    {
-      "node": "eigenvalues",
-      "type": "warmup",
-      "level": 2,
-      "q": "Растяжение в 2 раза по оси x и в 5 раз по оси y. Каковы собственные значения?",
-      "hint": "Найди векторы, которые не меняют направления.",
-      "a": "2 и 5: оси и есть собственные направления.",
-      "bridge": "Мостик: PCA в ML — главные компоненты, это собственные векторы ковариационной матрицы."
-    },
-    {
-      "node": "matrix",
-      "type": "warmup",
-      "level": 2,
-      "q": "Поворот на 90° против часовой стрелки — какая матрица?",
-      "hint": "Куда перейдут базисные векторы? Они и есть столбцы матрицы.",
-      "a": "[[0, −1], [1, 0]].",
-      "bridge": "Мостик: матрица переводит данные в предсказания — это МНК."
-    },
-    {
-      "node": "random_variables",
-      "type": "warmup",
-      "level": 2,
-      "q": "Сумма двух кубиков: чему равно матожидание?",
-      "hint": "E[X+Y]=E[X]+E[Y].",
-      "a": "7: по 3.5 на каждый кубик.",
-      "bridge": "Мостик: дисперсия и распределения — язык, на котором говорит Монте-Карло."
-    },
-    {
-      "node": "bfs_dfs",
-      "type": "warmup",
-      "level": 2,
-      "q": "В лабиринте с одинаковыми коридорами какой обход найдёт кратчайший путь?",
-      "hint": "Кто идёт «волнами» по расстоянию?",
-      "a": "BFS: волна достигает соседей по возрастанию расстояния.",
-      "bridge": "Мостик: BFS без весов — частный случай Дейкстры; вес ребра всегда 1."
-    }
-  ]
+"use strict";
+// ============ ДАННЫЕ: 35 ЗАДАЧ (19 разминок, 5 ловушек, 6 сокровищ, 5 сундуков) ============
+const TASKS = [
+ // ---------- СУНДУКИ (командные, дискретная математика) ----------
+ {id:"c1",node:"functions",type:"chest",level:3,title:"🧰 Сундук: биекция",
+  q:"Правда ли, что сюръективность + инъективность = биективность? Обоснуйте.",
+  hint:"Вспомните определения: «отображение на» и «разнозначное отображение».",
+  a:"Да. Биекция = одновременная сюръекция (на всё множество) и инъекция (разнозначность)."},
+ {id:"c2",node:"functions",type:"chest",level:3,title:"🧰 Сундук: образ объединения",
+  q:"Правда ли, что образ объединения множеств совпадает с объединением их образов?",
+  hint:"Рассмотрите произвольный элемент из объединения и примените отображение.",
+  a:"Да: f(A∪B) = f(A)∪f(B) для любого отображения."},
+ {id:"c3",node:"functions",type:"chest",level:3,title:"🧰 Сундук: образ пересечения",
+  q:"Правда ли, что образ пересечения множеств совпадает с пересечением их образов?",
+  hint:"Найдите контрпример на маленьких множествах.",
+  a:"Не всегда: f(A∩B) ⊆ f(A)∩f(B), но равенство может нарушаться, если разные элементы переходят в один."},
+ {id:"c4",node:"bool",type:"chest",level:3,title:"🧰 Сундук: полнота системы",
+  q:"Правда ли, что система булевых функций из сложения по модулю 2 и конъюнкции является полной?",
+  hint:"Попробуйте выразить отрицание и дизъюнкцию.",
+  a:"Да: {⊕, ∧} полна — отрицание x̄ = x⊕1, а дизъюнкция выражается через ∧ и ⊕."},
+ {id:"c5",node:"cardinality",type:"chest",level:3,title:"🧰 Сундук: мощность Q",
+  q:"Какую мощность имеет множество рациональных чисел? Обоснуйте.",
+  hint:"Пронумеруйте дроби зигзагом по числителю и знаменателю.",
+  a:"Счётная: рациональные числа нумеруются диагональным процессом Кантора."},
+ // ---------- ЛОВУШКИ ----------
+ {id:"t1",node:"confusion",type:"trap",level:3,title:"⚠️ Ловушка: парадокс 99%",
+  q:"Модель предсказывает «здоров» всем. Точность 99%. Сколько больных она найдёт из 10 000 человек, если больных 1%?",
+  hint:"Точность считается по всем примерам, а не по больным.",
+  a:"Ноль. Модель всегда говорит «здоров»: точность 99% = 9900/10000, но recall по больным = 0."},
+ {id:"t2",node:"cardinality",type:"trap",level:3,title:"⚠️ Ловушка: иррациональные",
+  q:"Какую мощность имеет множество иррациональных чисел?",
+  hint:"Что больше: счётное множество или континуум? А их разность?",
+  a:"Мощность континуума (несчётно): вычитание счётного множества из континуума не меняет мощность."},
+ {id:"t3",node:"probability",type:"trap",level:3,title:"⚠️ Ловушка: дни рождения",
+  q:"Сколько людей нужно в комнате, чтобы вероятность совпадения дней рождения хотя бы у двух превысила 50%? Интуиция против расчёта!",
+  hint:"Считайте пары: n(n−1)/2, а не людей.",
+  a:"Всего 23 человека (вероятность 50,7%)."},
+ {id:"t4",node:"combinatorics",type:"trap",level:2,title:"⚠️ Ловушка: два орла",
+  q:"Сколькими способами можно выбрать два «орла» из четырёх монет? Порядок выбора не имеет значения.",
+  hint:"Это сочетания, не размещения.",
+  a:"C(4,2) = 6 способов."},
+ {id:"t5",node:"complexity",type:"trap",level:3,title:"⚠️ Ловушка: порядок роста",
+  q:"Что растёт быстрее при больших n: O(n²) или O(2ⁿ)? А O(n·log n) против O(n²)?",
+  hint:"Подставьте n = 100 в оба выражения.",
+  a:"O(2ⁿ) растёт быстрее любого полинома; n·log n медленнее n²."},
+ // ---------- СОКРОВИЩА ----------
+ {id:"s1",node:"regression",type:"treasure",level:2,title:"💰 Сокровище: регрессия",
+  q:"Какую величину минимизирует метод наименьших квадратов в линейной регрессии?",
+  hint:"Речь о среднем квадрате… чего?",
+  a:"Сумму (среднее) квадратов отклонений предсказаний от фактических значений (MSE)."},
+ {id:"s2",node:"bayes",type:"treasure",level:2,title:"💰 Сокровище: Байес",
+  q:"Запишите формулу Байеса и объясните словами, что такое априорная и апостериорная вероятности.",
+  hint:"P(H|E) = …",
+  a:"P(H|E) = P(E|H)·P(H)/P(E). Априорная — до данных, апостериорная — после наблюдения E."},
+ {id:"s3",node:"montecarlo",type:"treasure",level:2,title:"💰 Сокровище: Монте-Карло π",
+  q:"Как оценить число π методом Монте-Карло с помощью случайных точек в квадрате?",
+  hint:"Впишите квадрат в четверть круга и считайте долю точек.",
+  a:"Доля точек в круге ≈ π/4; умножаем на 4 и получаем оценку π."},
+ {id:"s4",node:"matrices",type:"treasure",level:2,title:"💰 Сокровище: поворот",
+  q:"Какой матрицей задаётся поворот вектора на угол φ на плоскости?",
+  hint:"Две строки, четыре числа, косинусы и синусы.",
+  a:"[[cos φ, −sin φ],[sin φ, cos φ]]."},
+ {id:"s5",node:"hashtables",type:"treasure",level:2,title:"💰 Сокровище: коллизии",
+  q:"Что такое коллизия в хеш-таблице и какова вероятность совпадения дней рождения у 23 людей? (Подсказка: это одно и то же явление.)",
+  hint:"Ключи и корзины.",
+  a:"Совпадение хешей у разных ключей; при 23 людях и 365 «корзинах» вероятность ≈ 50,7%."},
+ {id:"s6",node:"confusion",type:"treasure",level:2,title:"💰 Сокровище: точность и полнота",
+  q:"Модель нашла 80 из 100 больных (precision 90%). Чему равен recall, если всего больных 200?",
+  hint:"Recall = найденные / все настоящие.",
+  a:"80/200 = 0,4 (40%)."},
+ // ---------- РАЗМИНКИ ----------
+ {id:"w1",node:"vectors",type:"warmup",level:1,q:"Что такое скалярное произведение векторов и как его вычислить?",
+  hint:"Сумма произведений координат.",a:"a·b = a₁b₁ + a₂b₂ + …; геометрически |a||b|cos φ."},
+ {id:"w2",node:"vectors",type:"warmup",level:1,q:"Когда два вектора ортогональны?",
+  hint:"Посмотрите на скалярное произведение.",a:"Когда их скалярное произведение равно нулю."},
+ {id:"w3",node:"sets",type:"warmup",level:1,q:"Чем объединение множеств отличается от пересечения?",
+  hint:"«Или» против «и».",a:"Объединение A∪B — элементы хотя бы одного; пересечение A∩B — элементы обоих."},
+ {id:"w4",node:"sets",type:"warmup",level:1,q:"Что такое мощность множества?",
+  hint:"Сколько…?",a:"Число его элементов (для конечных множеств)."},
+ {id:"w5",node:"complexity",type:"warmup",level:1,q:"Что означает запись O(n) для алгоритма?",
+  hint:"Как растёт время при росте входа.",a:"Время растёт линейно с размером входа (с точностью до констант)."},
+ {id:"w6",node:"complexity",type:"warmup",level:1,q:"Сравните O(log n) и O(n): что быстрее на больших n?",
+  hint:"Подставьте n = 1 000 000.",a:"O(log n): логарифм растёт несравнимо медленнее."},
+ {id:"w7",node:"recursion",type:"warmup",level:1,q:"Что обязательно должно быть в рекурсивной функции, чтобы она не зациклилась?",
+  hint:"Условие выхода.",a:"Базовый случай (условие остановки рекурсии)."},
+ {id:"w8",node:"recursion",type:"warmup",level:1,q:"Выпишите рекуррентную формулу для чисел Фибоначчи.",
+  hint:"F(0)=0, F(1)=1, а дальше?",a:"F(n) = F(n−1) + F(n−2)."},
+ {id:"w9",node:"functions",type:"warmup",level:1,q:"Назовите синоним понятия «разнозначное отображение».",
+  hint:"Другое название инъективности.",a:"Инъективное отображение."},
+ {id:"w10",node:"functions",type:"warmup",level:1,q:"Назовите синоним понятия «отображение на».",
+  hint:"Другое название сюръективности.",a:"Сюръективное отображение."},
+ {id:"w11",node:"cardinality",type:"warmup",level:1,q:"Что значит «равномощность множеств»?",
+  hint:"Между ними существует…",a:"Существует биекция между ними."},
+ {id:"w12",node:"matrices",type:"warmup",level:1,q:"Что такое единичная матрица?",
+  hint:"Единицы на…",a:"Квадратная матрица с единицами на главной диагонали; A·E = A."},
+ {id:"w13",node:"matrices",type:"warmup",level:1,q:"Как умножить матрицу на вектор?",
+  hint:"Строка на столбец.",a:"Каждая строка матрицы скалярно умножается на вектор."},
+ {id:"w14",node:"probability",type:"warmup",level:1,q:"В каких пределах лежит вероятность любого события?",
+  hint:"От… до…",a:"От 0 до 1 включительно."},
+ {id:"w15",node:"probability",type:"warmup",level:1,q:"Монета бросается 1 раз. Вероятность орла?",
+  hint:"Классическое определение.",a:"1/2."},
+ {id:"w16",node:"hashtables",type:"warmup",level:1,q:"Зачем нужна хеш-функция в хеш-таблице?",
+  hint:"Она переводит ключ в…",a:"Преобразует ключ в индекс корзины для быстрого доступа O(1) в среднем."},
+ {id:"w17",node:"hashtables",type:"warmup",level:1,q:"Что хуже для хеш-таблицы: много корзин или много коллизий?",
+  hint:"Что замедляет поиск?",a:"Много коллизий — поиск вырождается в перебор списка."},
+ {id:"w18",node:"regression",type:"warmup",level:1,q:"Чем регрессия отличается от классификации?",
+  hint:"Число или метка?",a:"Регрессия предсказывает непрерывное число, классификация — метку класса."},
+ {id:"w19",node:"bayes",type:"warmup",level:1,q:"Что такое условная вероятность P(A|B)?",
+  hint:"Вероятность A при условии…",a:"Вероятность события A при условии, что B произошло: P(A|B) = P(A∩B)/P(B)."}
+];
+window.TASKS = TASKS;
+
+const RARE_ID = "t3"; // задача про дни рождения — редкое сокровище (гонка)
+const SIZES = {
+  4:{treasure:4, trap:3, chest:1, warmup:8},
+  5:{treasure:6, trap:5, chest:1, warmup:13}
 };
-const NODE_TITLES = {"vectors": "Векторы", "matrix": "Матрицы", "eigenvalues": "Собственные значения", "sets": "Множества", "logic": "Логика", "boolean_functions": "Булевы функции", "combinatorics": "Комбинаторика", "probability": "Вероятность", "random_variables": "Случайные величины", "graphs": "Графы", "big_o": "O-нотация", "recursion": "Рекурсия", "linear_systems": "СЛАУ и Гаусс", "mnk": "МНК", "bayes": "Формула Байеса", "monte_carlo": "Монте-Карло", "sorting": "Сортировки", "binary_search": "Бинарный поиск", "trees": "Деревья", "hashtables": "Хеш-таблицы", "bfs_dfs": "BFS и DFS", "dijkstra": "Дейкстра", "dp": "Динамическое программирование", "regression": "Регрессия", "naive_bayes": "Наивный Байес", "confusion": "Матрица неточности", "pi_estimation": "Оценка π", "logic_circuits": "Логические схемы", "navigation": "Навигация", "db_indexes": "Индексы БД", "test_mnk": "Тест: МНК и регрессия", "test_bayes": "Тест: Байес", "test_logic": "Тест: логика", "test_graphs": "Тест: графы", "test_algorithms": "Тест: алгоритмы"};
-const TYPE_RU = {warmup:"Разминка", trap:"Ловушка", treasure:"Сокровище", chest:"Сундук"};
 
-/* ===== состояние ===== */
-const KEY = "ta_pirate_demo";
-let S = null;                 // состояние партии
-let selTeam = -1;             // выбранная команда (для открытия клеток)
-let timerId = null, timerLeft = 0;
+// ============ СОСТОЯНИЕ ============
+let S = null;
+const $ = id => document.getElementById(id);
+const show = (id,on) => $(id).classList.toggle("visible",on);
 
-function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
-function load(){
-  try{ S = JSON.parse(localStorage.getItem(KEY)); }catch(e){ S = null; }
+function save(){ try{ localStorage.setItem("pirate_demo", JSON.stringify(S)); }catch(e){} }
+function loadState(){
+  try{ const s = localStorage.getItem("pirate_demo"); return s? JSON.parse(s):null; }catch(e){ return null; }
 }
+function clearState(){ localStorage.removeItem("pirate_demo"); }
 
-/* ===== настройка ===== */
-function setField(n){
-  S_setup.field = n;
-  document.getElementById("f44").classList.toggle("sel", n===4);
-  document.getElementById("f55").classList.toggle("sel", n===5);
+// ============ НАСТРОЙКА ============
+const setupTeams = [];
+function addTeam(){
+  const n = setupTeams.length + 1;
+  setupTeams.push({name:"Команда " + n});
+  renderSetupTeams();
 }
-const S_setup = {field:4};
-let teamInputs = ["",""];
-function addTeamInput(){
-  teamInputs.push("");
-  renderTeamInputs();
-}
-function renderTeamInputs(){
-  const box = document.getElementById("teams-input");
-  box.innerHTML = "";
-  teamInputs.forEach((v,i)=>{
-    const row = document.createElement("div");
-    row.className = "team-row";
-    row.innerHTML = `<input value="${v}" placeholder="Название команды ${i+1}"
-      oninput="teamInputs[${i}]=this.value">` +
-      (teamInputs.length>2 ? `<button class="btn red small" onclick="teamInputs.splice(${i},1);renderTeamInputs()">✕</button>`:"");
-    box.appendChild(row);
+function renderSetupTeams(){
+  const box = $("setupTeams"); box.innerHTML = "";
+  setupTeams.forEach((t,i)=>{
+    const d = document.createElement("div");
+    d.style.margin = ".3rem 0";
+    d.innerHTML = `<input type="text" value="${t.name.replace(/"/g,"&quot;")}"
+      oninput="setupTeams[${i}].name=this.value" placeholder="Название команды">`;
+    box.appendChild(d);
   });
 }
-
-function newGame(){
-  S = null; selTeam = -1; clearInterval(timerId);
-  document.getElementById("game").classList.add("hidden");
-  document.getElementById("final").classList.add("hidden");
-  document.getElementById("setup").classList.remove("hidden");
-  save(); renderTeamInputs();
+document.querySelectorAll("[data-size]").forEach(b=>{
+  b.onclick = ()=>{ S = Object.assign(loadState()||{}, {size:+b.dataset.size}); renderSizeInfo(); };
+});
+function renderSizeInfo(){
+  $("sizeInfo").textContent = S && S.size ? ("Выбрано поле " + S.size + "×" + S.size) : "— не выбрано —";
 }
-
 function startGame(){
-  const names = teamInputs.map(s=>s.trim()).filter(Boolean);
-  if(!names.length){ toast("Добавьте хотя бы одну команду!"); return; }
+  if(!S || !S.size){ $("startHint").textContent = "Сначала выберите размер поля!"; return; }
+  if(setupTeams.length < 1){ $("startHint").textContent = "Добавьте хотя бы одну команду!"; return; }
+  const useChest = $("chestChk").checked;
+  const cnt = Object.assign({}, SIZES[S.size]);
+  if(!useChest){ cnt.warmup += cnt.chest; cnt.chest = 0; }
+  // жеребьёвка
+  const buckets = {warmup:[], trap:[], treasure:[], chest:[]};
+  TASKS.forEach((t,i)=>buckets[t.type].push(i));
+  const picked = [];
+  for(const type of ["chest","treasure","trap","warmup"]){
+    shuffle(buckets[type]);
+    picked.push(...buckets[type].slice(0, cnt[type]));
+  }
+  shuffle(picked);
   S = {
-    field: S_setup.field,
-    chests: document.getElementById("useChest").checked,
-    teams: names.map(n=>({name:n, oxy:0, tre:0})),
-    turn: 0, phase: 1,
-    grid: deal(),
-    dryPool: TASKS.tasks.map((t,i)=>i).filter(i=>TASKS.tasks[i].type!=="chest"),
-    usedDry: [], usedCells: [], done: false
+    size:S.size,
+    teams: setupTeams.map(t=>({name:t.name||"Команда", o2:0, tr:0, bridge:false})),
+    board: picked.map(id=>({id, opened:false, team:null, result:null})),
+    phase:1, turn:1, active:0, dryUsed:[], rareWinner:null,
+    started:true, finished:false
   };
   save();
-  document.getElementById("setup").classList.add("hidden");
-  document.getElementById("final").classList.add("hidden");
-  document.getElementById("game").classList.remove("hidden");
-  render();
-}
-
-/* жеребьёвка поля */
-function deal(){
-  const n = S_setup.field;
-  const pool = i=>TASKS[T[i].node];
-  const buckets = {treasure:[],trap:[],chest:[],warmup:[]};
-  TASKS.tasks.forEach((t,i)=>buckets[t.type].push(i));
-  shuffle(buckets.treasure); shuffle(buckets.trap);
-  shuffle(buckets.chest);    shuffle(buckets.warmup);
-  const counts = n===5
-    ? {treasure:6, trap:5, chest:S_setup.chests?1:0}
-    : {treasure:4, trap:3, chest:S_setup.chests?0:0};
-  const pick = [];
-  const take = (arr,k)=>{ for(let i=0;i<k;i++) pick.push(arr.pop()); };
-  take(buckets.treasure, counts.treasure);
-  take(buckets.trap, counts.trap);
-  if(counts.chest) take(buckets.chest, counts.chest);
-  while(pick.length < n*n) pick.push(buckets.warmup.pop());
-  shuffle(pick);
-  return pick;
+  show("setup",false); show("game",true);
+  renderAll();
 }
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+function task(id){ return TASKS.find(t=>t.id===id); }
 
-/* ===== отрисовка ===== */
-function render(){
-  if(!S) return;
-  const f = document.getElementById("field");
-  const n = S.field;
-  f.style.gridTemplateColumns = `repeat(${n},1fr)`;
-  f.innerHTML = "";
-  S.grid.forEach((ti,idx)=>{
-    const cell = document.createElement("div");
-    cell.className = "cell";
-    if(S.usedCells.includes(idx)){
-      cell.classList.add("open");
-      const t = T[ti];
-      cell.innerHTML = (t.type==="treasure"?"💰":t.type==="trap"?"⚠️":t.type==="chest"?"🎁":"⬜");
-      const who = S.cellOwner ? S.cellOwner[idx] : null;
-      if(who){
-        const s = document.createElement("span");
-        s.className="tname"; s.textContent = who;
-        cell.appendChild(s);
-      }
-    } else {
-      cell.textContent = "🌊";
-      if(S.phase===2 && selTeam>=0) cell.classList.add("now");
-      cell.onclick = ()=>openCell(idx);
-    }
-    f.appendChild(cell);
-  });
-  renderSide();
-  const ph = document.getElementById("phase");
-  ph.textContent = S.phase===1 ? "Фаза 1 · На суше ☁️" : "Фаза 2 · Погружение 🌊";
-  document.getElementById("curteam").textContent =
-    S.phase===2 ? "Ход: " + S.teams[S.turn].name : "Этап «на суше»";
+// ============ РЕНДЕР ============
+function renderAll(){ renderHead(); renderTeams(); renderBoard(); save(); }
+function renderHead(){
+  $("fasehead").textContent = "Фаза " + S.phase + (S.phase===1 ? " · На суше" : " · Погружение");
+  $("turnNo").textContent = S.turn;
+  $("btnPhase2").disabled = S.phase===2;
+  $("btnPhase1").disabled = S.phase===1;
 }
-
-function renderSide(){
-  const side = document.getElementById("side");
-  side.innerHTML = "<h2 style='margin:.2rem 0'>Команды</h2>";
-  S.teams.forEach((tm,i)=>{
-    const card = document.createElement("div");
-    card.className = "teamcard" + (i===selTeam && S.phase===2 ? " sel":"");
-    card.innerHTML = `<div class="nm">${tm.name}</div>
-      <div class="nums"><span>🫧 <b>${tm.oxy}</b></span><span>💰 <b>${tm.tre}</b></span></div>
-      <div class="aw">
-        <button class="btn blue small" onclick="award(${i},1)">+1</button>
-        <button class="btn blue small" onclick="award(${i},2)">+2</button>
-        <button class="btn blue small" onclick="award(${i},3)">+3</button>
-        <button class="btn small" onclick="award(${i},1,true)">🌉 мостик +1</button>
+function renderTeams(){
+  const box = $("teams"); box.innerHTML = "";
+  S.teams.forEach((t,i)=>{
+    const d = document.createElement("div");
+    d.className = "team" + (i===S.active && S.phase===2 ? " active":"");
+    d.innerHTML = `<h3>${esc(t.name)}${i===S.active && S.phase===2 ? " ⬅" : ""}</h3>
+      <div>О₂: <span class="cnt">${t.o2}</span> &nbsp; 💰: <span class="cnt">${t.tr}</span></div>
+      <div class="row">
+        <button onclick="giveO2(${i},1)">+1</button>
+        <button onclick="giveO2(${i},2)">+2</button>
+        <button onclick="giveO2(${i},3)">+3</button>
+        <button onclick="giveO2(${i},-1)">−1</button>
+        <button onclick="bridge(${i})" ${t.bridge?"disabled":""}>🌉 мостик +1</button>
       </div>`;
-    card.onclick = (e)=>{ if(e.target.tagName!=="BUTTON"){ selTeam=i; render(); } };
-    side.appendChild(card);
+    d.onclick = e => { if(e.target.tagName!=="BUTTON"){ S.active=i; renderAll(); } };
+    box.appendChild(d);
+  });
+}
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+function giveO2(i,delta){
+  S.teams[i].o2 = Math.max(0, S.teams[i].o2 + delta);
+  renderAll();
+}
+function bridge(i){
+  if(S.teams[i].bridge) return;
+  S.teams[i].bridge = true; S.teams[i].o2++;
+  renderAll();
+}
+function renderBoard(){
+  const n = S.size, box = $("board");
+  box.style.gridTemplateColumns = `repeat(${n},1fr)`;
+  box.innerHTML = "";
+  const icons = {treasure:"❓", trap:"❓", chest:"❓", warmup:"❓"};
+  S.board.forEach((c,i)=>{
+    const t = task(c.id);
+    const d = document.createElement("div");
+    const isRare = t.id===RARE_ID;
+    if(!c.opened){
+      d.className = "cell";
+      if(S.phase===2 && i===S.active) d.classList.add("active-turn");
+      d.innerHTML = "🌊" + (isRare? '<div class="tag">✨ редкое</div>':'');
+      d.onclick = ()=>openCell(i);
+    } else {
+      d.className = "cell opened";
+      const mark = c.result==="win" ? "💰" : (c.result==="lose" ? "☠️" : "⬜");
+      d.innerHTML = `${mark}<div class="who">${esc(c.team||"")}</div>`;
+    }
+    box.appendChild(d);
   });
 }
 
-function toast(msg){
-  const t = document.getElementById("toast");
-  t.textContent = msg; t.style.opacity = 1;
-  clearTimeout(t._h); t._h = setTimeout(()=>t.style.opacity=0, 2200);
+// ============ ФАЗА 1 ============
+let timerH = null;
+function dryTask(){
+  const pool = TASKS.filter(t=>t.type!=="chest" && t.id!==RARE_ID && !S.dryUsed.includes(t.id));
+  if(!pool.length){ alert("Задания на суше закончились!"); return; }
+  const t = pool[Math.floor(Math.random()*pool.length)];
+  S.dryUsed.push(t.id); save();
+  openTaskModal(t, "Задание на суше", true);
+}
+function openTaskModal(t, title, withTimer){
+  $("tmTitle").textContent = (title||"") + " · " + (t.title || ("Сложность " + t.level));
+  $("tmQ").textContent = t.q;
+  $("tmHint").textContent = t.hint;
+  $("tmAns").textContent = t.a;
+  const btns = $("tmButtons"); btns.innerHTML = "";
+  const close = document.createElement("button");
+  close.textContent = "Закрыть"; close.onclick = closeModal;
+  btns.appendChild(close);
+  show("taskModal",true);
+  if(withTimer) startTimer(180, $("tmTimer"));
+}
+function closeModal(){
+  show("taskModal",false);
+  if(timerH){ clearInterval(timerH); timerH=null; }
 }
 
-/* ===== кислород ===== */
-function award(i,k,bridge){
-  S.teams[i].oxy += k;
-  save(); renderSide();
-  if(bridge) toast("🌉 «Мостик» засчитан: +" + k);
+// ============ ФАЗА 2 ============
+function toPhase2(){
+  S.phase = 2; S.active = 0; save(); renderAll();
 }
-
-/* ===== задание на суше ===== */
-function showDryTask(){
-  if(S.phase!==1){ toast("Задания «на суше» — в первой фазе!"); return; }
-  const avail = S.dryPool.filter(i=>!S.usedDry.includes(i));
-  if(!avail.length){ toast("Задания на суше закончились — можно только погружаться!"); return; }
-  const ti = avail[Math.floor(Math.random()*avail.length)];
-  S.usedDry.push(ti); save();
-  startTimer(180);
-  openTask(ti, "warmup", null, null);
+function toPhase1(){
+  S.phase = 1; S.turn++; save(); renderAll();
 }
-
-/* ===== открытие клетки ===== */
-function openCell(idx){
-  if(S.phase!==2){ toast("Открывать клетки можно только во второй фазе!"); return; }
-  if(selTeam<0){ toast("Сначала выберите команду в правой панели!"); return; }
-  const tm = S.teams[selTeam];
-  if(tm.oxy<1){ toast("У команды «"+tm.name+"» нет кислорода!"); return; }
-  tm.oxy -= 1;
-  const ti = S.grid[idx];
-  S.usedCells.push(idx);
-  S.cellOwner = S.cellOwner || {};
-  S.cellOwner[idx] = tm.name;
-  save(); render();
-  openTask(ti, T[ti].type, idx, tm);
-}
-
-/* ===== показ задачи в модалке ===== */
-function openTask(ti, type, idx, team){
-  const t = T[ti];
-  const box = document.getElementById("modalBox");
-  let head = `<span class="tag ${t.type}">${TYPE_RU[t.type]} · сложность ${t.level}</span>`;
-  let body = `<div class="q">${t.q}</div>
-    <details><summary>Подсказка</summary><p class="a">${t.hint}</p></details>
-    <details><summary>Ответ</summary><p class="a">${t.a}</p>
-    <p class="bridge">${t.bridge}</p></details>`;
-
-  let acts = "";
-  if(idx===null){
-    // задание на суше: раздача кислорода
-    acts = `<div class="acts"><button class="btn blue" onclick="closeModal()">Готово</button></div>`;
-  } else if(type==="treasure"){
-    if(t.node==="hashtables"){
-      body = `<div class="rare-note">💎 <b>Редкое сокровище!</b> Отвечают все команды наперегонки — побеждает быстрая.</div>` + body;
-      acts = `<div class="acts"><b style="font-size:1.2rem">Забрал победитель:</b><div class="win-btns">` +
-        S.teams.map((tm,i)=>`<button class="btn" onclick="rareWin(${i});">${tm.name}</button>`).join("") +
-        `</div></div>`;
-    } else {
-      acts = `<div class="acts"><button class="btn" onclick="treasureWon(${idx})">💰 Сокровище команде «${team.name}»</button>
-        <button class="btn ghost" onclick="closeModal()">Закрыть</button></div>`;
-    }
-  } else if(type==="trap"){
-    acts = `<div class="acts">
-      <button class="btn" onclick="trapOk(${idx})">✅ Ловушка пройдена — сокровище!</button>
-      <button class="btn red" onclick="trapFail(${idx})">❌ Не справились</button></div>`;
-  } else if(type==="chest"){
-    acts = `<div class="acts"><button class="btn" onclick="chestOk(${idx})">🎁 Задание выполнено — сундук вскрыт!</button>
-      <button class="btn ghost" onclick="closeModal()">Закрыть</button></div>`;
-  } else {
-    acts = `<div class="acts"><button class="btn ghost" onclick="closeModal()">Пустая клетка — закрываем</button></div>`;
+function openCell(i){
+  if(S.phase!==1) {} // переход не требуется
+  const c = S.board[i];
+  if(c.opened) return;
+  const team = S.teams[S.active];
+  if(team.o2 < 1){ alert("У команды «" + team.name + "» нет кислорода! Выдайте задание на суше."); return; }
+  team.o2--;
+  c.opened = true; c.team = team.name;
+  const t = task(c.id);
+  if(t.id===RARE_ID){ // редкое сокровище: гонка всех команд
+    openRaceModal(t);
+    return;
   }
-  box.innerHTML = head + body + acts;
-  document.getElementById("modal").classList.remove("hidden");
+  if(t.type==="treasure"){
+    c.result = "win"; team.tr++;
+    openTaskModal(t, "💰 Сокровище команды «" + team.name + "»", false);
+  } else if(t.type==="trap"){
+    openTrapModal(t, c);
+  } else if(t.type==="chest"){
+    openChestModal(t, c);
+  } else {
+    c.result = "empty";
+    openTaskModal(t, "Пустая клетка — разминка", false);
+  }
+  nextActive();
+  renderAll();
 }
-function closeModal(){ document.getElementById("modal").classList.add("hidden"); }
+function openTrapModal(t, c){
+  $("tmTitle").textContent = "⚠️ Ловушка! Команда «" + c.team + "»";
+  $("tmQ").textContent = t.q;
+  $("tmHint").textContent = t.hint;
+  $("tmAns").textContent = t.a;
+  const btns = $("tmButtons"); btns.innerHTML = "";
+  const b1 = document.createElement("button"); b1.className="gold"; b1.textContent="💪 Преодолели (+💰)";
+  b1.onclick = ()=>{ c.result="win"; teamOf(c.team).tr++; closeModal(); renderAll(); };
+  const b2 = document.createElement("button"); b2.textContent="☠️ Не справились";
+  b2.onclick = ()=>{ c.result="lose";
+    const team = teamOf(c.team);
+    if(team.tr>0) team.tr--;
+    team.o2 = 0;
+    closeModal(); renderAll(); };
+  btns.append(b1,b2);
+  show("taskModal",true);
+}
+function openChestModal(t, c){
+  $("tmTitle").textContent = "🧰 Сундук! Командное задание";
+  $("tmQ").textContent = t.q;
+  $("tmHint").textContent = t.hint;
+  $("tmAns").textContent = t.a;
+  const btns = $("tmButtons"); btns.innerHTML = "";
+  const b1 = document.createElement("button"); b1.className="gold"; b1.textContent="🔓 Вскрыли (+2 💰)";
+  b1.onclick = ()=>{ c.result="win"; teamOf(c.team).tr+=2; closeModal(); renderAll(); };
+  const b2 = document.createElement("button"); b2.textContent="🔒 Не вскрыли";
+  b2.onclick = ()=>{ c.result="empty"; closeModal(); renderAll(); };
+  btns.append(b1,b2);
+  show("taskModal",true);
+}
+function openRaceModal(t){
+  $("tmTitle").textContent = "✨ РЕДКОЕ СОКРОВИЩЕ · Отвечают все команды наперегонки!";
+  $("tmQ").textContent = t.q;
+  $("tmHint").textContent = t.hint;
+  $("tmAns").textContent = "Победитель — команда, назвавшая n быстрее и точнее.";
+  const btns = $("tmButtons"); btns.innerHTML = "";
+  S.teams.forEach((team,i)=>{
+    const b = document.createElement("button"); b.className="gold";
+    b.textContent = "🏆 " + team.name;
+    b.onclick = ()=>{
+      const cellIdx = S.board.findIndex(c=>c.id===RARE_ID && c.opened);
+      if(cellIdx>=0){ S.board[cellIdx].result="win"; S.board[cellIdx].team = team.name; }
+      team.tr++;
+      S.rareWinner = team.name;
+      closeModal(); renderAll();
+    };
+    btns.appendChild(b);
+  });
+  show("taskModal",true);
+}
+function teamOf(name){ return S.teams.find(t=>t.name===name) || S.teams[0]; }
+function nextActive(){
+  for(let k=1;k<=S.teams.length;k++){
+    const i = (S.active+k) % S.teams.length;
+    if(S.teams[i].o2>0){ S.active=i; return; }
+  }
+  // никто не имеет кислорода — остаёмся
+}
 
-/* ===== исходы клеток ===== */
-function treasureWon(idx){
-  S.teams[selTeam].tre += 1; save(); render(); closeModal();
-}
-function rareWin(i){
-  S.teams[i].tre += 1;
-  S.cellOwner = S.cellOwner || {};
-  const idx = S.usedCells[S.usedCells.length-1];
-  S.cellOwner[idx] = S.teams[i].name;
-  nextTurn(); save(); render(); closeModal();
-}
-function trapOk(idx){
-  S.teams[selTeam].tre += 1; nextTurn(); save(); render(); closeModal();
-}
-function trapFail(idx){
-  const tm = S.teams[selTeam];
-  if(tm.tre>0) tm.tre -= 1;
-  tm.oxy = 0;
-  nextTurn(); save(); render(); closeModal();
-  toast("⚠️ Ловушка! Кислород обнулился" );
-}
-function chestOk(idx){
-  S.teams[selTeam].tre += 2; nextTurn(); save(); render(); closeModal();
-  toast("🎁 Сундук вскрыт: +2 сокровища!");
-}
-function nextTurn(){
-  if(S.phase===2) S.turn = (S.turn+1) % S.teams.length;
-}
-
-/* ===== таймер ===== */
-function startTimer(sec){
-  clearInterval(timerId); timerLeft = sec;
-  paintTimer();
-  timerId = setInterval(()=>{
-    timerLeft--; paintTimer();
-    if(timerLeft<=0){ clearInterval(timerId); toast("⏰ Время вышло!"); }
+// ============ ТАЙМЕР ============
+function startTimer(sec, el){
+  if(timerH) clearInterval(timerH);
+  let left = sec;
+  const draw = ()=>{
+    const m = Math.floor(left/60), s = left%60;
+    el.textContent = m + ":" + String(s).padStart(2,"0");
+    el.classList.toggle("out", left<=0);
+  };
+  draw();
+  timerH = setInterval(()=>{
+    left--; draw();
+    if(left<=0){ clearInterval(timerH); timerH=null; el.textContent="⏰ Время вышло!"; }
   },1000);
 }
-function paintTimer(){
-  const m = Math.floor(timerLeft/60), s = timerLeft%60;
-  document.getElementById("timer").textContent = m + ":" + String(s).padStart(2,"0");
-}
 
-/* ===== фазы ===== */
-function setPhase(p){
-  S.phase = p;
-  if(p===1){ selTeam = -1; }
-  save(); render();
-}
-
-/* ===== финал ===== */
+// ============ ИТОГИ ============
 function finishGame(){
-  clearInterval(timerId);
-  closeModal();
-  S.done = true; save();
-  document.getElementById("game").classList.add("hidden");
-  const fin = document.getElementById("final");
-  fin.classList.remove("hidden");
-  const rows = [...S.teams].sort((a,b)=>b.tre-a.tre);
-  const best = rows.length ? rows[0].tre : 0;
-  document.getElementById("score").innerHTML =
-    "<tr><th>Место</th><th>Команда</th><th>💰 Сокровища</th></tr>" +
-    rows.map((tm,i)=>`<tr class="${tm.tre===best&&best>0?'first':''}">
-      <td>${i+1}</td><td>${tm.name}</td><td>${tm.tre}</td></tr>`).join("");
-  // бланк добычи: узлы открытых клеток
-  const got = new Set(S.usedCells.map(idx=>T[S.grid[idx]].node));
-  document.getElementById("blank").innerHTML =
-    "<ul>" + [...got].map(id=>`<li>${NODE_TITLES[id]||id} <code>${id}</code></li>`).join("") + "</ul>";
+  const score = S.teams.map(t=>({name:t.name, tr:t.tr})).sort((a,b)=>b.tr-a.tr);
+  $("endScore").innerHTML = "<table><tr><th>Место</th><th>Команда</th><th>💰</th></tr>" +
+    score.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.name)}</td><td>${r.tr}</td></tr>`).join("") + "</table>";
+  const mined = {};
+  S.board.forEach(c=>{ if(c.result==="win" && c.team){ mined[c.team] = mined[c.team]||[]; mined[c.team].push(task(c.id).node); } });
+  const uniq = [...new Set(Object.values(mined).flat())];
+  $("endNodes").innerHTML = uniq.length
+    ? uniq.map(n=>`• ${n} — ${Object.entries(mined).filter(([,v])=>v.includes(n)).map(([k])=>k).join(", ")}`).join("<br>")
+    : "Узлов не добыто.";
+  show("endModal",true);
 }
-function copyBlank(){
-  const got = new Set(S.usedCells.map(idx=>T[S.grid[idx]].node));
-  navigator.clipboard.writeText([...got].join("\n"))
-    .then(()=>toast("Список узлов скопирован — вставьте в ta_progress"))
-    .catch(()=>toast("Копирование заблокировано браузером"));
+function copyNodes(){
+  const mined = {};
+  S.board.forEach(c=>{ if(c.result==="win" && c.team){ mined[c.team] = mined[c.team]||[]; mined[c.team].push(task(c.id).node); } });
+  const uniq = [...new Set(Object.values(mined).flat())];
+  const text = "ta_progress_узлы: " + uniq.join(", ");
+  if(navigator.clipboard) navigator.clipboard.writeText(text).then(
+    ()=>alert("Скопировано: " + text),
+    ()=>alert("Не удалось скопировать. Узлы: " + uniq.join(", "))
+  );
+}
+function newGame(){
+  clearState();
+  show("endModal",false); show("game",false); show("setup",true);
+  S = null; renderSizeInfo();
 }
 
-/* ===== перерисовка из другой вкладки ===== */
-window.addEventListener("storage", e=>{ if(e.key===KEY){ load(); if(S) render(); } });
-
-/* ===== старт ===== */
-load();
-if(S && !S.done){
-  document.getElementById("setup").classList.add("hidden");
-  document.getElementById("game").classList.remove("hidden");
-  if(S_setup.field !== S.field) S_setup.field = S.field;
-  render();
-} else { newGame(); }
+// ============ ВОССТАНОВЛЕНИЕ ПАРТИИ ============
+(function boot(){
+  const saved = loadState();
+  if(saved && saved.started && !saved.finished &&
+     confirm("Обнаружена незавершённая партия. Продолжить?")){
+    S = saved;
+    show("setup",false); show("game",true);
+    renderAll();
+  } else if(saved && saved.started){ clearState(); }
+})();
 </script>
 </body>
 </html>
